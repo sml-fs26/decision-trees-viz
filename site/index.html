@@ -4,34 +4,45 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Classification Trees — decision-trees-viz</title>
-  <style>
-    body {
-      font-family: 'Iowan Old Style', Palatino, Georgia, serif;
-      background: #fbf8f3;
-      color: #2a2a2a;
-      max-width: 720px;
-      margin: 80px auto;
-      padding: 0 24px;
-      line-height: 1.55;
-    }
-    h1 { font-weight: 500; letter-spacing: -0.01em; }
-    .subtitle { color: #6a6a6a; font-style: italic; }
-    .placeholder {
-      margin-top: 40px;
-      padding: 20px;
-      background: #fff;
-      border: 1px solid #e4dfd5;
-      border-radius: 4px;
-      color: #6a6a6a;
-      font-size: 14px;
-    }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./playground/shared/style.css" />
 </head>
 <body>
-  <h1>Classification Trees</h1>
-  <p class="subtitle">An interactive visualization of lecture 15.</p>
-  <div class="placeholder">
-    Site under construction — Phase 0 deploy check.
-  </div>
+  <main class="landing">
+    <section class="hero">
+      <h1>Classification Trees</h1>
+      <p class="subtitle">An interactive visualization of lecture 15.</p>
+    </section>
+
+    <p class="intro">
+      A short, hands-on companion to lecture 15 of
+      <em>Stochastics and Machine Learning</em> (SML, FS26).
+      Meet a cohort of students, watch a decision tree carve their
+      feature space into axis-aligned rectangles, and see for yourself
+      why a careful <em>depth limit</em> is the difference between a
+      useful classifier and a machine that memorizes noise.
+    </p>
+
+    <div class="card-grid">
+      <a class="card" href="./playground/data-intro.html">
+        <h2>Meet the data</h2>
+        <p>Two students, a whole cohort, and the hidden rule that decides who passes the exam. A visual introduction to classification in ℝ².</p>
+        <span class="cta">Start here →</span>
+      </a>
+      <a class="card" href="./playground/tree-builder.html">
+        <h2>Build a tree</h2>
+        <p>Dr. Quinlan walks you from a single hand-placed split to the full greedy algorithm — and the overfitting trap at the end.</p>
+        <span class="cta">Train with Dr. Quinlan →</span>
+      </a>
+    </div>
+
+    <footer>
+      Companion to the regression-focused site at
+      <a href="https://carloscotrini.github.io/sml_lab_26/" target="_blank" rel="noopener">carloscotrini.github.io/sml_lab_26</a>.
+      Source on <a href="https://github.com/sml-fs26/decision-trees-viz" target="_blank" rel="noopener">GitHub</a>.
+    </footer>
+  </main>
 </body>
 </html>

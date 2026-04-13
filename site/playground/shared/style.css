@@ -1,1 +1,288 @@
-/* style.css — stub. Implemented in Phase 1. */
+/* style.css — shared styles for decision-trees-viz.
+   Setosa/Distill-inspired: off-white, generous whitespace, minimal chrome. */
+
+:root {
+  /* Base */
+  --c-bg:        #fbf8f3;
+  --c-panel-bg:  #ffffff;
+  --c-ink:       #2a2a2a;
+  --c-ink-muted: #6a6a6a;
+  --c-border:    #e4dfd5;
+
+  /* Classification palette */
+  --c-class-a:   #B83280;
+  --c-class-b:   #3182CE;
+  --c-split:     #E53E3E;
+  --c-pure:      #27AE60;
+  --c-impure:    #D4A017;
+  --c-truth:     #D4A017;
+
+  /* Character accents */
+  --c-quinlan:   #2E5EA8;
+  --c-breiman:   #805AD5;
+
+  /* Type */
+  --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono:  'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--sans);
+  font-size: 16.5px;
+  line-height: 1.55;
+}
+
+a { color: var(--c-quinlan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; line-height: 1.3; }
+
+/* ---------------------------------------------------------- */
+/* Landing page                                                */
+/* ---------------------------------------------------------- */
+.landing {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 80px 28px 60px;
+}
+.landing .hero h1 {
+  font-size: 46px;
+  margin: 0 0 6px;
+}
+.landing .hero .subtitle {
+  color: var(--c-ink-muted);
+  font-style: italic;
+  font-family: var(--serif);
+  font-size: 20px;
+  margin: 0 0 28px;
+}
+.landing .intro {
+  font-size: 17px;
+  color: var(--c-ink);
+  max-width: 640px;
+  margin-bottom: 40px;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 32px;
+}
+.card {
+  display: block;
+  padding: 26px 24px;
+  background: var(--c-panel-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  color: var(--c-ink);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s;
+}
+.card:hover {
+  text-decoration: none;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  border-color: var(--c-quinlan);
+}
+.card h2 { margin: 0 0 8px; font-size: 22px; }
+.card p  { margin: 0; color: var(--c-ink-muted); font-size: 15px; }
+.card .cta {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--c-quinlan);
+  font-weight: 600;
+  font-size: 14px;
+}
+.landing footer {
+  margin-top: 64px;
+  padding-top: 20px;
+  border-top: 1px solid var(--c-border);
+  font-size: 13.5px;
+  color: var(--c-ink-muted);
+}
+
+/* ---------------------------------------------------------- */
+/* Top bar (scrollytelling pages)                              */
+/* ---------------------------------------------------------- */
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--c-bg);
+  border-bottom: 1px solid var(--c-border);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--c-ink-muted);
+}
+.top-bar .brand {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--c-ink);
+  font-weight: 500;
+}
+.stage-progress {
+  color: var(--c-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.formula-tracker {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  overflow: hidden;
+  font-size: 13px;
+}
+.formula-tracker .f-item {
+  padding: 2px 8px;
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 3px;
+}
+
+/* ---------------------------------------------------------- */
+/* Scrollytelling layout                                       */
+/* ---------------------------------------------------------- */
+.scroll-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 24px 120px;
+}
+.scroll-narrative {
+  min-width: 0;
+}
+.scroll-viz {
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 80px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.scroll-viz > * { width: 100%; }
+.scroll-stage {
+  min-height: 70vh;
+  padding: 48px 0;
+  opacity: 0.45;
+  transition: opacity .3s ease;
+}
+.scroll-stage.stage-active { opacity: 1; }
+.scroll-stage h2 {
+  font-size: 30px;
+  margin: 0 0 16px;
+}
+.scroll-stage p { font-size: 16.5px; }
+
+@media (max-width: 860px) {
+  .scroll-container { grid-template-columns: 1fr; }
+  .scroll-viz {
+    position: relative;
+    top: auto;
+    height: auto;
+    order: -1;
+    margin-bottom: 12px;
+  }
+  .scroll-stage { min-height: auto; padding: 28px 0; opacity: 1; }
+}
+
+/* ---------------------------------------------------------- */
+/* Coloured boxes                                              */
+/* ---------------------------------------------------------- */
+.toystory, .keyinsight, .warningbox, .repairbox, .numermark, .vizspec {
+  padding: 14px 16px;
+  margin: 16px 0;
+  border-radius: 4px;
+  border-left: 4px solid;
+  background: #fff;
+  font-size: 15.5px;
+}
+.toystory   { border-color: var(--c-impure);  background: #fef7e6; }
+.keyinsight { border-color: var(--c-quinlan); background: #edf3fb; }
+.warningbox { border-color: var(--c-split);   background: #fdecea; }
+.repairbox  { border-color: var(--c-pure);    background: #e9f6ee; }
+.numermark  { border-color: #5a8cd0;          background: #eff5fb; font-family: var(--mono); font-size: 14px; }
+.vizspec    { border-color: var(--c-pure);    background: #edf7f0; font-size: 14px; color: var(--c-ink-muted); }
+.toystory strong, .keyinsight strong, .warningbox strong, .repairbox strong { color: var(--c-ink); }
+
+/* ---------------------------------------------------------- */
+/* Character card                                              */
+/* ---------------------------------------------------------- */
+.char-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-left: 4px solid var(--c-quinlan);
+  border-radius: 4px;
+  margin: 20px 0;
+}
+.char-card.breiman { border-left-color: var(--c-breiman); }
+.char-avatar {
+  flex: 0 0 44px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--c-quinlan);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 18px;
+}
+.char-card.breiman .char-avatar { background: var(--c-breiman); }
+.char-card .char-body { flex: 1; font-size: 15px; }
+.char-card .char-name { font-weight: 600; color: var(--c-ink); }
+
+/* ---------------------------------------------------------- */
+/* Scatter + tree SVG                                          */
+/* ---------------------------------------------------------- */
+.pg-scatter, .pg-tree { width: 100%; height: auto; font-family: var(--sans); }
+.pg-scatter .axis path,
+.pg-scatter .axis line { stroke: #bfbdb3; }
+.pg-scatter .axis text { fill: var(--c-ink-muted); font-size: 11px; }
+.pg-scatter .axis-label { fill: var(--c-ink); font-size: 12px; font-family: var(--sans); }
+
+/* ---------------------------------------------------------- */
+/* Controls / buttons                                          */
+/* ---------------------------------------------------------- */
+.pg-btn {
+  font-family: var(--sans);
+  font-size: 14px;
+  padding: 8px 14px;
+  border: none;
+  background: var(--c-ink);
+  color: var(--c-bg);
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.pg-btn.secondary {
+  background: #fff;
+  color: var(--c-ink);
+  border: 1px solid var(--c-border);
+}
+.pg-btn:hover { opacity: 0.9; }
+
+.muted { color: var(--c-ink-muted); }
+
+/* ---------------------------------------------------------- */
+/* Reduced motion                                              */
+/* ---------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
