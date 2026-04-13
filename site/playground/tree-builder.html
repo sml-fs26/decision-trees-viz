@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Classification Trees · Build a tree</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <link rel="stylesheet" href="./shared/style.css" />
+
+  <style>
+    /* Top bar local layout tweaks on top of shared .top-bar */
+    .top-bar { gap: 18px; }
+    .top-bar .back-link {
+      font-size: 13px;
+      color: var(--c-ink-muted);
+    }
+    .top-bar .back-link:hover { color: var(--c-quinlan); }
+    .top-bar .brand { white-space: nowrap; }
+    .top-bar .stage-progress .num { color: var(--c-quinlan); font-weight: 600; }
+
+    .formula-tracker { font-size: 12.5px; }
+    .formula-tracker .f-item {
+      opacity: 0;
+      transform: translateY(2px);
+      transition: opacity .35s ease, transform .35s ease;
+    }
+    .formula-tracker .f-item.visible { opacity: 1; transform: translateY(0); }
+
+    /* Viz pane (desktop-sticky) */
+    .scroll-viz {
+      flex-direction: column;
+      gap: 10px;
+      align-items: stretch;
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+    .scroll-viz > * { flex: none; }
+    #scatterHost, #secondaryHost {
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+      width: 100%;
+    }
+    #scatterHost { min-height: 340px; flex: 1 1 auto; }
+    #secondaryHost {
+      min-height: 180px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: var(--c-ink-muted);
+    }
+    #secondaryHost .ph { color: var(--c-ink-muted); font-style: italic; }
+    #secondaryHost svg { width: 100%; height: 100%; display: block; }
+    .viz-readout {
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--c-ink);
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+      min-height: 20px;
+    }
+    .viz-readout .r-label {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-ink-muted);
+      margin-right: 4px;
+    }
+    .viz-readout .r-val { color: var(--c-ink); font-weight: 600; }
+    .viz-readout .r-val.bad { color: var(--c-split); }
+    .viz-readout .r-val.good { color: var(--c-pure); }
+
+    /* Controls */
+    .stage .controls {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .stage .controls .row {
+      display: grid;
+      grid-template-columns: 110px 1fr 70px;
+      gap: 10px;
+      align-items: center;
+      font-size: 13.5px;
+    }
+    .stage .controls .row .label {
+      color: var(--c-ink-muted);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .stage .controls .row .val {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--c-ink);
+      text-align: right;
+    }
+    .stage .controls input[type=range] { width: 100%; }
+    .stage .controls button {
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 6px 12px;
+      border: 1px solid var(--c-quinlan);
+      color: var(--c-quinlan);
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+    .stage .controls button:hover { background: var(--c-quinlan); color: #fff; }
+    .stage .controls button.primary {
+      background: var(--c-quinlan);
+      color: #fff;
+    }
+    .stage .controls button.primary:hover { filter: brightness(1.08); }
+    .stage .controls .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--c-ink-muted);
+    }
+
+    /* Entropy mini-examples */
+    .entropy-examples {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .entropy-examples .ex {
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .entropy-examples .ex .dots { font-size: 18px; letter-spacing: 2px; margin-bottom: 4px; }
+    .entropy-examples .ex .h { font-family: var(--mono); color: var(--c-quinlan); font-weight: 600; }
+
+    /* Pseudocode */
+    pre.pseudocode {
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.55;
+      background: #fbf7ee;
+      border: 1px solid var(--c-border);
+      border-left: 3px solid var(--c-impure);
+      border-radius: 4px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      color: var(--c-ink);
+    }
+    pre.pseudocode .kw { color: var(--c-quinlan); font-weight: 600; }
+    pre.pseudocode .cmt { color: var(--c-ink-muted); font-style: italic; }
+
+    .stage-eq {
+      margin-top: 18px;
+      padding: 10px 12px;
+      background: rgba(46, 94, 168, 0.06);
+      border: 1px solid rgba(46, 94, 168, 0.22);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .stage-eq .stage-eq-label {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-quinlan);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .katex { font-size: 1em; }
+    .katex-display { margin: 6px 0; }
+
+    /* Heatmap */
+    .heatmap-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+    }
+    .heatmap-wrap .hm-label {
+      font-size: 11px;
+      color: var(--c-ink-muted);
+      font-family: var(--mono);
+    }
+
+    /* Train/test plot */
+    .tt-legend {
+      display: flex;
+      gap: 14px;
+      font-size: 12px;
+      color: var(--c-ink-muted);
+      font-family: var(--mono);
+    }
+    .tt-legend .sw {
+      display: inline-block;
+      width: 12px; height: 3px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+
+    .coda {
+      max-width: 760px;
+      margin: 30px auto 80px;
+      padding: 0 24px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--c-ink-muted);
+    }
+    .coda a { color: var(--c-quinlan); font-weight: 600; }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .scroll-viz { gap: 8px; }
+      #scatterHost { min-height: 260px; }
+      #secondaryHost { min-height: 140px; }
+      .top-bar { flex-wrap: wrap; gap: 8px; }
+      .formula-tracker { display: none; }
+    }
+  </style>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}], throwOnError:false});"></script>
+</head>
+<body>
+  <div class="top-bar">
+    <a class="back-link" href="./data-intro.html">← Meet the data</a>
+    <span class="brand">Classification Trees · Build a tree</span>
+    <div class="formula-tracker" id="formulaTracker" aria-live="polite">
+      <span class="f-item" data-f="H">\( H(D) = -\sum_j p_j \log_2 p_j \)</span>
+      <span class="f-item" data-f="Q">\( Q(D,f,t) = \frac{|D_L|}{|D|} H(D_L) + \frac{|D_R|}{|D|} H(D_R) \)</span>
+      <span class="f-item" data-f="algo">train(D) pseudocode</span>
+    </div>
+    <span class="stage-progress">Stage <span class="num" id="stageNum">1</span> / 7</span>
+  </div>
+
+  <main class="scroll-container">
+    <div class="scroll-narrative" id="narrative">
+
+      <!-- ================= STAGE 1 ================= -->
+      <section class="scroll-stage" data-stage="1">
+        <h2>Meet Dr. Quinlan</h2>
+        <p>A cohort of <strong>150 students</strong> is waiting on the plot — the same cohort you met on the previous page. Each student has two features: hours studied (<em>X<sub>1</sub></em>) and lectures attended (<em>X<sub>2</sub></em>). Pink dots passed the exam, blue dots failed.</p>
+
+        <div class="char-card">
+          <div class="char-avatar" aria-label="Dr. Quinlan">Q</div>
+          <div class="char-body">
+            <div class="char-name" style="color: var(--c-quinlan);">Dr. Quinlan</div>
+            <p style="margin:6px 0 0;">“Let me classify these students. I'll start with one split — one straight line across the plot. On one side I'll predict <em>passed</em>; on the other, <em>failed</em>. It won't be perfect. But it's a beginning.”</p>
+          </div>
+        </div>
+
+        <p>Dr. Quinlan's plan is the seed of every decision tree: pick a feature, pick a threshold, cut the space in two. Do it well and you've already captured a lot of the story. Do it again, recursively, and you've built a tree.</p>
+
+        <div class="keyinsight">
+          <strong>The idea.</strong> A classification tree partitions the feature space into axis-aligned rectangles and assigns a label to each one. Every rectangle is reached by a sequence of yes/no questions about the features.
+        </div>
+      </section>
+
+      <!-- ================= STAGE 2 ================= -->
+      <section class="scroll-stage" data-stage="2">
+        <h2>One hand-placed split</h2>
+        <p>Start the simplest way: drag the red dashed line across the plot. Everything to the left of the line, Dr. Quinlan predicts one class; everything to the right, the other. The <strong>majority label</strong> on each side wins.</p>
+
+        <div class="char-card">
+          <div class="char-avatar" aria-label="Dr. Quinlan">Q</div>
+          <div class="char-body">
+            <div class="char-name" style="color: var(--c-quinlan);">Dr. Quinlan</div>
+            <p style="margin:6px 0 0;">“Watch the counter as I slide. Every mistake — every dot on the wrong side of the line — flashes red. I'd like that number as small as possible.”</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="row">
+            <span class="label">threshold</span>
+            <input type="range" id="s2Slider" min="0" max="14" step="0.05" value="5" />
+            <span class="val" id="s2ValOut">5.00</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s2Horiz" /> Split on X₂ (horizontal) instead of X₁
+          </label>
+        </div>
+
+        <p style="margin-top:12px;">Try a few positions. Try the horizontal split too. Notice that <em>any</em> single axis-aligned line still leaves a lot of students on the wrong side — the true rule is a diagonal, and a single axis cut can only approximate it.</p>
+      </section>
+
+      <!-- ================= STAGE 3 ================= -->
+      <section class="scroll-stage" data-stage="3">
+        <h2>A smoother quality measure: entropy</h2>
+        <p>Counting mistakes is honest, but it's bumpy — moving the line a tiny bit often doesn't change the count at all. A smoother measure of <em>how mixed</em> a region is will serve us better. That measure is <strong>entropy</strong>:</p>
+        <p>\[ H(D) = -\sum_{j} p_j \log_2 p_j \]</p>
+        <p>where \(p_j\) is the fraction of label \(j\) in the region \(D\). Pure region → \(H=0\); perfectly mixed → \(H=1\) (for two classes).</p>
+
+        <div class="entropy-examples">
+          <div class="ex"><div class="dots"><span style="color:var(--c-class-a);">●●</span><span style="color:var(--c-class-b);">●●</span></div>50 / 50<div class="h">H = 1.00</div></div>
+          <div class="ex"><div class="dots"><span style="color:var(--c-class-a);">●●●</span><span style="color:var(--c-class-b);">●</span></div>75 / 25<div class="h">H ≈ 0.81</div></div>
+          <div class="ex"><div class="dots"><span style="color:var(--c-class-a);">●●●●</span></div>pure<div class="h">H = 0.00</div></div>
+        </div>
+
+        <p>When Dr. Quinlan splits the data with a line \((f, t)\), he gets two children \(D_L\) and \(D_R\). The quality of the split is their <strong>weighted-sum entropy</strong>:</p>
+        <p>\[ Q(D, f, t) = \frac{|D_L|}{|D|}\, H(D_L) + \frac{|D_R|}{|D|}\, H(D_R) \]</p>
+
+        <p>Slide the threshold again. Now you can read \(H(D_L)\), \(H(D_R)\), and \(Q\) live. Below the scatter, a line plot shows \(Q\) as the threshold sweeps across the axis — the <strong>minimum</strong> is the best split on this feature.</p>
+
+        <div class="controls">
+          <div class="row">
+            <span class="label">threshold</span>
+            <input type="range" id="s3Slider" min="0" max="14" step="0.05" value="5" />
+            <span class="val" id="s3ValOut">5.00</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s3Horiz" /> Split on X₂
+          </label>
+        </div>
+      </section>
+
+      <!-- ================= STAGE 4 ================= -->
+      <section class="scroll-stage" data-stage="4">
+        <h2>Let the computer find the best split</h2>
+        <p>Dr. Quinlan doesn't guess. He considers every candidate threshold on every feature and picks the one that minimises \(Q\). On the right, a small <strong>heatmap</strong> shows \(Q\) over a grid of 60 threshold candidates for each of the two features. Dark cells are low \(Q\) (good splits). The single darkest cell — the <strong>global minimum</strong> — is ringed in red.</p>
+
+        <div class="controls">
+          <div class="row">
+            <span class="label">threshold</span>
+            <input type="range" id="s4Slider" min="0" max="14" step="0.05" value="5" />
+            <span class="val" id="s4ValOut">5.00</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="s4Horiz" /> Split on X₂
+          </label>
+          <button id="s4Apply" class="primary">Apply best split</button>
+        </div>
+
+        <p style="margin-top:12px;">Press “Apply best split” and the red line snaps to the argmin. That pair \((f^*, t^*)\) is the first cut Dr. Quinlan actually uses.</p>
+
+        <div class="keyinsight">
+          <strong>Automation.</strong> We turn a subjective “good enough” into an objective minimisation: one sweep over candidates per feature.
+        </div>
+      </section>
+
+      <!-- ================= STAGE 5 ================= -->
+      <section class="scroll-stage" data-stage="5">
+        <h2>Now do it again — on each side</h2>
+        <p>A single split is rarely enough. After the first cut, Dr. Quinlan has two datasets \(D_L, D_R\). He applies the same procedure to each. Then again, and again. The splits pile up, the partition refines, and a <strong>tree</strong> starts to form.</p>
+
+        <p>The slider controls the <em>depth limit</em>: how many layers of splitting we allow. Watch the decision regions on the scatter, the growing tree diagram below, and the training accuracy climb.</p>
+
+        <div class="controls">
+          <div class="row">
+            <span class="label">max depth</span>
+            <input type="range" id="s5Slider" min="0" max="6" step="1" value="2" />
+            <span class="val" id="s5ValOut">2</span>
+          </div>
+        </div>
+
+        <div class="vizspec" style="margin-top:10px;">Left / top of the viz pane: the coloured decision regions behind the points. Right / bottom: the tree diagram. Internal nodes read <em>X<sub>f</sub> &lt; t</em>, leaves are coloured by majority class.</div>
+      </section>
+
+      <!-- ================= STAGE 6 ================= -->
+      <section class="scroll-stage" data-stage="6">
+        <h2>The algorithm, in six lines</h2>
+        <p>Everything you just saw is a recursive greedy procedure. Written out:</p>
+
+        <pre class="pseudocode"><span class="kw">def</span> train(D):
+    <span class="kw">if</span> H(D) == 0:
+        <span class="kw">return</span> leaf(y)          <span class="cmt"># pure region — no need to split</span>
+    <span class="kw">else</span>:
+        (f, t) = <span class="kw">argmin</span><sub>(f,t)</sub> Q(D, f, t)
+        D_L, D_R = split D by (f, t)
+        <span class="kw">return</span> node(f, t, train(D_L), train(D_R))
+</pre>
+
+        <p>The <strong>base case</strong>: if the region is already pure (\(H = 0\)), emit a leaf with its single label. The <strong>recursive case</strong>: pick the best split, partition the data, and train two subtrees.</p>
+
+        <p>That's the whole algorithm. In practice we add a depth limit (or a minimum-leaf-size rule) to the base case — and that's exactly what saves us from the trouble on the next stage.</p>
+      </section>
+
+      <!-- ================= STAGE 7 ================= -->
+      <section class="scroll-stage" data-stage="7">
+        <h2>Without a depth limit: overfitting</h2>
+        <p>Let's see what happens if we let Dr. Quinlan go all the way. Slide the depth up. Training accuracy climbs monotonically, and if you push it high enough, it touches 1.00 — every single training student is classified correctly.</p>
+
+        <p>Now look at the <strong>test accuracy</strong>. A separate cohort of 200 students was generated from the same world (different seed) and held out. On the plot below, the blue line is training accuracy; the pink line is test accuracy.</p>
+
+        <div class="controls">
+          <div class="row">
+            <span class="label">max depth</span>
+            <input type="range" id="s7Slider" min="1" max="12" step="1" value="3" />
+            <span class="val" id="s7ValOut">3</span>
+          </div>
+        </div>
+
+        <div class="warningbox">
+          <strong>The trap.</strong> Past a certain depth, training accuracy keeps rising but test accuracy <em>falls</em>. Dr. Quinlan isn't learning the rule any more — he's memorising the 5% label noise in the training set. On fresh data that noise is different, and his extra splits actively hurt.
+        </div>
+
+        <div class="repairbox">
+          <strong>The fix.</strong> Cap the depth. A shallow tree can't memorise noise because it doesn't have enough leaves to do so. A depth limit is crude but remarkably effective — the cheapest regulariser trees have.
+        </div>
+
+        <div class="stage-eq">
+          <span class="stage-eq-label">What you walked away with</span>
+          Entropy \(H(D)\); weighted split quality \(Q(D,f,t)\); the greedy recursive algorithm; and the reason that depth limits exist.
+        </div>
+      </section>
+
+    </div>
+
+    <div class="scroll-viz" id="vizPane">
+      <div id="scatterHost"></div>
+      <div class="viz-readout" id="readout">
+        <span class="r-label">stage</span><span class="r-val" id="roStage">1</span>
+      </div>
+      <div id="secondaryHost"><span class="ph">(secondary view appears with the stages)</span></div>
+    </div>
+  </main>
+
+  <section class="coda">
+    <p>That's the tour. <a href="../index.html">← Back to start</a></p>
+  </section>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script type="module">
+    import { generateData } from './shared/dgp.js';
+    import {
+      entropy, splitQuality, bestSplit, train,
+      predictBatch, accuracy, treeDepth
+    } from './shared/tree.js';
+    import {
+      createScatter2D, drawTreeDiagram, PALETTE
+    } from './shared/plot.js';
+
+    // ---------------- state ----------------
+    const TRAIN = generateData(150, 42, { boundary: 'linear', noise: 0.05 });
+    const TEST  = generateData(200, 2025, { boundary: 'linear', noise: 0.05 });
+    const X = [TRAIN.X1, TRAIN.X2];
+    const Xtest = [TEST.X1, TEST.X2];
+
+    const state = {
+      activeStage: 0,
+      s2: { t: 5, feature: 0 },
+      s3: { t: 5, feature: 0 },
+      s4: { t: 5, feature: 0, best: null },
+      s5: { depth: 2 },
+      s7: { depth: 3 },
+      // Pre-computed train/test curve (depth 1..12)
+      ttCurve: null
+    };
+
+    // Pre-compute best split across features
+    state.s4.best = bestSplit(X, TRAIN.y);
+
+    // Pre-compute train/test accuracy curve for stage 7
+    state.ttCurve = (() => {
+      const depths = [];
+      for (let d = 1; d <= 12; d++) {
+        const tree = train(X, TRAIN.y, { maxDepth: d });
+        depths.push({
+          d,
+          train: accuracy(tree, X, TRAIN.y),
+          test:  accuracy(tree, Xtest, TEST.y),
+          tree
+        });
+      }
+      return depths;
+    })();
+
+    // ---------------- scatter ----------------
+    const scatter = createScatter2D(document.getElementById('scatterHost'), {
+      width: 520, height: 420,
+      data: TRAIN
+    });
+
+    // ---------------- topbar helpers ----------------
+    const stageNumEl = document.getElementById('stageNum');
+    const trackerEl = document.getElementById('formulaTracker');
+    function setTracker(keys) {
+      trackerEl.querySelectorAll('.f-item').forEach(el => {
+        el.classList.toggle('visible', keys.has(el.dataset.f));
+      });
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(trackerEl, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false }
+          ],
+          throwOnError: false
+        });
+      }
+    }
+
+    // ---------------- readout ----------------
+    const readoutEl = document.getElementById('readout');
+    function setReadout(pairs) {
+      // pairs: array of { label, val, cls? }
+      const parts = pairs.map(({ label, val, cls }) =>
+        `<span class="r-label">${label}</span><span class="r-val${cls ? ' ' + cls : ''}">${val}</span>`
+      );
+      readoutEl.innerHTML = parts.join('');
+    }
+
+    // ---------------- secondary host ----------------
+    const secondaryHost = document.getElementById('secondaryHost');
+    function clearSecondary(placeholder) {
+      secondaryHost.innerHTML = placeholder
+        ? `<span class="ph">${placeholder}</span>`
+        : '';
+    }
+
+    // ---------------- utilities ----------------
+    function misclassifiedAgainstSplit(feature, t) {
+      // Apply threshold split. Left side majority label vs right.
+      const leftLab = [], rightLab = [], leftIdx = [], rightIdx = [];
+      const col = X[feature];
+      for (let i = 0; i < col.length; i++) {
+        if (col[i] < t) { leftLab.push(TRAIN.y[i]); leftIdx.push(i); }
+        else            { rightLab.push(TRAIN.y[i]); rightIdx.push(i); }
+      }
+      const majL = maj(leftLab), majR = maj(rightLab);
+      const wrong = new Set();
+      for (let k = 0; k < leftIdx.length; k++)
+        if (TRAIN.y[leftIdx[k]] !== majL) wrong.add(leftIdx[k]);
+      for (let k = 0; k < rightIdx.length; k++)
+        if (TRAIN.y[rightIdx[k]] !== majR) wrong.add(rightIdx[k]);
+      return { wrong, nL: leftLab.length, nR: rightLab.length,
+               hL: entropy(leftLab), hR: entropy(rightLab),
+               q: splitQuality(leftLab, rightLab),
+               majL, majR };
+    }
+    function maj(labels) {
+      let c0 = 0, c1 = 0;
+      for (const v of labels) v === 0 ? c0++ : c1++;
+      return c1 >= c0 ? 1 : 0;
+    }
+
+    // Sweep Q over thresholds along a given feature.
+    function sweepQ(feature, nSteps = 120) {
+      const col = X[feature];
+      const min = feature === 0 ? 0 : 0;
+      const max = feature === 0 ? 10 : 14;
+      const out = [];
+      for (let i = 0; i < nSteps; i++) {
+        const t = min + (i + 0.5) * (max - min) / nSteps;
+        const leftLab = [], rightLab = [];
+        for (let k = 0; k < col.length; k++) {
+          if (col[k] < t) leftLab.push(TRAIN.y[k]);
+          else            rightLab.push(TRAIN.y[k]);
+        }
+        if (leftLab.length === 0 || rightLab.length === 0) {
+          out.push({ t, q: 1 });
+        } else {
+          out.push({ t, q: splitQuality(leftLab, rightLab) });
+        }
+      }
+      return out;
+    }
+
+    // ---------------- stage renderers ----------------
+    // Each renderer resets the state it owns. We clear split, tree, highlights
+    // at the beginning of most stages so transitions are idempotent.
+
+    function renderStage1() {
+      scatter.setSplit(null);
+      scatter.setTree(null);
+      scatter.highlightIndices(null);
+      clearSecondary('Dr. Quinlan is looking at 150 students.');
+      setReadout([{ label: 'cohort', val: 'n = 150' }]);
+      setTracker(new Set());
+    }
+
+    function renderStage2() {
+      scatter.setTree(null);
+      const { t, feature } = state.s2;
+      scatter.setSplit({ feature, threshold: t });
+      const { wrong, nL, nR } = misclassifiedAgainstSplit(feature, t);
+      scatter.highlightIndices(wrong);
+      setReadout([
+        { label: feature === 0 ? 'X₁ <' : 'X₂ <', val: t.toFixed(2) },
+        { label: '|D_L|', val: nL },
+        { label: '|D_R|', val: nR },
+        { label: 'misclassified', val: `${wrong.size} / 150`, cls: wrong.size > 30 ? 'bad' : (wrong.size < 20 ? 'good' : '') }
+      ]);
+      clearSecondary('Drag the slider to move the split line.');
+      setTracker(new Set());
+    }
+
+    function renderStage3() {
+      scatter.setTree(null);
+      scatter.highlightIndices(null);
+      const { t, feature } = state.s3;
+      scatter.setSplit({ feature, threshold: t });
+      const info = misclassifiedAgainstSplit(feature, t);
+      setReadout([
+        { label: feature === 0 ? 'X₁ <' : 'X₂ <', val: t.toFixed(2) },
+        { label: 'H(D_L)', val: info.hL.toFixed(3) },
+        { label: 'H(D_R)', val: info.hR.toFixed(3) },
+        { label: 'Q(D,f,t)', val: info.q.toFixed(3), cls: 'good' }
+      ]);
+      drawQCurve(feature, t);
+      setTracker(new Set(['H', 'Q']));
+    }
+
+    function drawQCurve(feature, tCurrent) {
+      secondaryHost.innerHTML = '';
+      const W = 520, H = 180;
+      const margin = { top: 12, right: 14, bottom: 28, left: 40 };
+      const iw = W - margin.left - margin.right;
+      const ih = H - margin.top - margin.bottom;
+      const svg = d3.select(secondaryHost).append('svg')
+        .attr('viewBox', `0 0 ${W} ${H}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+      const sweep = sweepQ(feature, 120);
+      const xDom = feature === 0 ? [0, 10] : [0, 14];
+      const x = d3.scaleLinear().domain(xDom).range([0, iw]);
+      const y = d3.scaleLinear().domain([0, 1.02]).range([ih, 0]);
+      g.append('g').attr('transform', `translate(0,${ih})`)
+        .call(d3.axisBottom(x).ticks(6));
+      g.append('g').call(d3.axisLeft(y).ticks(4));
+      g.append('text').attr('x', iw / 2).attr('y', ih + 22)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-ink-muted)')
+        .text(feature === 0 ? 'threshold t on X₁' : 'threshold t on X₂');
+      g.append('text').attr('transform', 'rotate(-90)')
+        .attr('x', -ih / 2).attr('y', -30)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-ink-muted)')
+        .text('Q(D, f, t)');
+      const line = d3.line().x(d => x(d.t)).y(d => y(d.q)).curve(d3.curveMonotoneX);
+      g.append('path').datum(sweep).attr('d', line)
+        .attr('fill', 'none').attr('stroke', PALETTE.classB).attr('stroke-width', 2);
+      // marker
+      g.append('line')
+        .attr('x1', x(tCurrent)).attr('x2', x(tCurrent))
+        .attr('y1', 0).attr('y2', ih)
+        .attr('stroke', PALETTE.split).attr('stroke-width', 1.3)
+        .attr('stroke-dasharray', '4 3');
+      // minimum marker
+      let mn = sweep[0];
+      for (const p of sweep) if (p.q < mn.q) mn = p;
+      g.append('circle').attr('cx', x(mn.t)).attr('cy', y(mn.q))
+        .attr('r', 3.5).attr('fill', PALETTE.pure).attr('stroke', '#fff').attr('stroke-width', 1);
+    }
+
+    function renderStage4() {
+      scatter.setTree(null);
+      scatter.highlightIndices(null);
+      const { t, feature } = state.s4;
+      scatter.setSplit({ feature, threshold: t });
+      const info = misclassifiedAgainstSplit(feature, t);
+      const best = state.s4.best;
+      setReadout([
+        { label: feature === 0 ? 'X₁ <' : 'X₂ <', val: t.toFixed(2) },
+        { label: 'Q', val: info.q.toFixed(3) },
+        { label: 'Q*', val: best ? best.quality.toFixed(3) : '—', cls: 'good' },
+        { label: '(f*, t*)', val: best ? `(X${best.feature + 1}, ${best.threshold.toFixed(2)})` : '—' }
+      ]);
+      drawQHeatmap();
+      setTracker(new Set(['H', 'Q']));
+    }
+
+    function drawQHeatmap() {
+      secondaryHost.innerHTML = '';
+      const W = 520, H = 180;
+      const margin = { top: 18, right: 16, bottom: 28, left: 62 };
+      const iw = W - margin.left - margin.right;
+      const ih = H - margin.top - margin.bottom;
+      const svg = d3.select(secondaryHost).append('svg')
+        .attr('viewBox', `0 0 ${W} ${H}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+      const NCOL = 60;
+      const features = [0, 1];
+      const rowH = ih / features.length;
+      // Build Q grid.
+      const grid = features.map(f => sweepQ(f, NCOL));
+      // Color scale
+      let qMin = Infinity, qMax = -Infinity;
+      for (const row of grid) for (const c of row) {
+        if (c.q < qMin) qMin = c.q;
+        if (c.q > qMax) qMax = c.q;
+      }
+      const color = d3.scaleSequential(d3.interpolateViridis).domain([qMax, qMin]);
+      // Find global min cell
+      let gm = { f: 0, i: 0, q: Infinity };
+      grid.forEach((row, f) => row.forEach((c, i) => {
+        if (c.q < gm.q) gm = { f, i, q: c.q, t: c.t };
+      }));
+      // Draw cells
+      const cellW = iw / NCOL;
+      features.forEach((f, fi) => {
+        const row = grid[fi];
+        row.forEach((c, i) => {
+          g.append('rect')
+            .attr('x', i * cellW).attr('y', fi * rowH)
+            .attr('width', cellW + 0.5).attr('height', rowH - 3)
+            .attr('fill', color(c.q));
+        });
+        g.append('text').attr('x', -6).attr('y', fi * rowH + rowH / 2)
+          .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
+          .attr('font-size', 11).attr('fill', 'var(--c-ink)').attr('font-family', 'var(--mono)')
+          .text(f === 0 ? 'X₁' : 'X₂');
+      });
+      // Ring the global min.
+      g.append('rect')
+        .attr('x', gm.i * cellW - 1).attr('y', gm.f * rowH - 1)
+        .attr('width', cellW + 2).attr('height', rowH - 1)
+        .attr('fill', 'none').attr('stroke', PALETTE.split).attr('stroke-width', 2);
+      // Axis
+      const xDom0 = [0, 10], xDom1 = [0, 14];
+      g.append('text').attr('x', iw / 2).attr('y', ih + 22)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-ink-muted)')
+        .text('threshold candidates (60 per feature) — darker = lower Q');
+    }
+
+    function renderStage5() {
+      const d = state.s5.depth;
+      const tree = d === 0
+        ? { type: 'leaf', label: maj(Array.from(TRAIN.y)), n: TRAIN.y.length, entropy: entropy(Array.from(TRAIN.y)), indices: [] }
+        : train(X, TRAIN.y, { maxDepth: d });
+      scatter.setSplit(null);
+      scatter.highlightIndices(null);
+      scatter.setTree(tree);
+      const acc = accuracy(tree, X, TRAIN.y);
+      setReadout([
+        { label: 'depth limit', val: d },
+        { label: 'actual depth', val: treeDepth(tree) },
+        { label: 'training acc.', val: (acc * 100).toFixed(1) + '%', cls: 'good' }
+      ]);
+      secondaryHost.innerHTML = '';
+      drawTreeDiagram(secondaryHost, tree, { width: 520, height: 200 });
+      setTracker(new Set(['H', 'Q']));
+    }
+
+    function renderStage6() {
+      scatter.setSplit(null);
+      scatter.highlightIndices(null);
+      // Show the deepest tree we've trained so far (depth 6) as a visual anchor.
+      const tree = train(X, TRAIN.y, { maxDepth: 6 });
+      scatter.setTree(tree);
+      secondaryHost.innerHTML = '';
+      drawTreeDiagram(secondaryHost, tree, { width: 520, height: 200 });
+      setReadout([{ label: 'the algorithm', val: 'train(D) → leaf or node(f, t, train(D_L), train(D_R))' }]);
+      setTracker(new Set(['H', 'Q', 'algo']));
+    }
+
+    function renderStage7() {
+      const d = state.s7.depth;
+      const row = state.ttCurve[d - 1];
+      scatter.setSplit(null);
+      scatter.highlightIndices(null);
+      scatter.setTree(row.tree);
+      setReadout([
+        { label: 'depth', val: d },
+        { label: 'train', val: (row.train * 100).toFixed(1) + '%', cls: 'good' },
+        { label: 'test',  val: (row.test  * 100).toFixed(1) + '%', cls: row.test < row.train - 0.05 ? 'bad' : '' }
+      ]);
+      drawTTCurve(d);
+      setTracker(new Set(['H', 'Q', 'algo']));
+    }
+
+    function drawTTCurve(currentD) {
+      secondaryHost.innerHTML = '';
+      const W = 520, H = 200;
+      const margin = { top: 14, right: 14, bottom: 30, left: 42 };
+      const iw = W - margin.left - margin.right;
+      const ih = H - margin.top - margin.bottom;
+      const svg = d3.select(secondaryHost).append('svg')
+        .attr('viewBox', `0 0 ${W} ${H}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+      const data = state.ttCurve;
+      const x = d3.scaleLinear().domain([1, 12]).range([0, iw]);
+      const y = d3.scaleLinear().domain([0.7, 1.01]).range([ih, 0]);
+      g.append('g').attr('transform', `translate(0,${ih})`).call(d3.axisBottom(x).ticks(12));
+      g.append('g').call(d3.axisLeft(y).ticks(4).tickFormat(d3.format('.0%')));
+      g.append('text').attr('x', iw / 2).attr('y', ih + 24)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-ink-muted)')
+        .text('max depth');
+      // train
+      const trLine = d3.line().x(d => x(d.d)).y(d => y(d.train));
+      const teLine = d3.line().x(d => x(d.d)).y(d => y(d.test));
+      g.append('path').datum(data).attr('d', trLine)
+        .attr('fill', 'none').attr('stroke', PALETTE.classB).attr('stroke-width', 2);
+      g.append('path').datum(data).attr('d', teLine)
+        .attr('fill', 'none').attr('stroke', PALETTE.classA).attr('stroke-width', 2);
+      // points
+      data.forEach(row => {
+        g.append('circle').attr('cx', x(row.d)).attr('cy', y(row.train))
+          .attr('r', 2.5).attr('fill', PALETTE.classB);
+        g.append('circle').attr('cx', x(row.d)).attr('cy', y(row.test))
+          .attr('r', 2.5).attr('fill', PALETTE.classA);
+      });
+      // current marker
+      g.append('line').attr('x1', x(currentD)).attr('x2', x(currentD))
+        .attr('y1', 0).attr('y2', ih)
+        .attr('stroke', PALETTE.split).attr('stroke-width', 1.3)
+        .attr('stroke-dasharray', '4 3');
+      // legend
+      g.append('rect').attr('x', iw - 120).attr('y', 4).attr('width', 10).attr('height', 2).attr('fill', PALETTE.classB);
+      g.append('text').attr('x', iw - 106).attr('y', 8).attr('font-size', 10).attr('fill', 'var(--c-ink-muted)').text('training acc.');
+      g.append('rect').attr('x', iw - 120).attr('y', 18).attr('width', 10).attr('height', 2).attr('fill', PALETTE.classA);
+      g.append('text').attr('x', iw - 106).attr('y', 22).attr('font-size', 10).attr('fill', 'var(--c-ink-muted)').text('test acc.');
+    }
+
+    const renderers = {
+      1: renderStage1, 2: renderStage2, 3: renderStage3, 4: renderStage4,
+      5: renderStage5, 6: renderStage6, 7: renderStage7
+    };
+
+    function renderStage(n) {
+      if (n === state.activeStage) return;
+      state.activeStage = n;
+      stageNumEl.textContent = n;
+      (renderers[n] || renderStage1)();
+    }
+
+    // ---------------- controls wiring ----------------
+    const s2Slider = document.getElementById('s2Slider');
+    const s2Horiz  = document.getElementById('s2Horiz');
+    const s2ValOut = document.getElementById('s2ValOut');
+    function s2Sync() {
+      state.s2.feature = s2Horiz.checked ? 1 : 0;
+      // Clamp threshold to feature domain
+      const max = state.s2.feature === 0 ? 10 : 14;
+      const t = Math.min(max, Math.max(0, +s2Slider.value));
+      state.s2.t = t;
+      s2Slider.max = max;
+      s2ValOut.textContent = t.toFixed(2);
+      if (state.activeStage === 2) renderStage2();
+    }
+    s2Slider.addEventListener('input', s2Sync);
+    s2Horiz.addEventListener('change', () => {
+      // When toggling, reset threshold to middle of new domain.
+      state.s2.feature = s2Horiz.checked ? 1 : 0;
+      const max = state.s2.feature === 0 ? 10 : 14;
+      s2Slider.max = max;
+      s2Slider.value = (max / 2).toFixed(2);
+      s2Sync();
+    });
+
+    const s3Slider = document.getElementById('s3Slider');
+    const s3Horiz  = document.getElementById('s3Horiz');
+    const s3ValOut = document.getElementById('s3ValOut');
+    function s3Sync() {
+      state.s3.feature = s3Horiz.checked ? 1 : 0;
+      const max = state.s3.feature === 0 ? 10 : 14;
+      const t = Math.min(max, Math.max(0, +s3Slider.value));
+      state.s3.t = t;
+      s3Slider.max = max;
+      s3ValOut.textContent = t.toFixed(2);
+      if (state.activeStage === 3) renderStage3();
+    }
+    s3Slider.addEventListener('input', s3Sync);
+    s3Horiz.addEventListener('change', () => {
+      state.s3.feature = s3Horiz.checked ? 1 : 0;
+      const max = state.s3.feature === 0 ? 10 : 14;
+      s3Slider.max = max;
+      s3Slider.value = (max / 2).toFixed(2);
+      s3Sync();
+    });
+
+    const s4Slider = document.getElementById('s4Slider');
+    const s4Horiz  = document.getElementById('s4Horiz');
+    const s4ValOut = document.getElementById('s4ValOut');
+    const s4Apply  = document.getElementById('s4Apply');
+    function s4Sync() {
+      state.s4.feature = s4Horiz.checked ? 1 : 0;
+      const max = state.s4.feature === 0 ? 10 : 14;
+      const t = Math.min(max, Math.max(0, +s4Slider.value));
+      state.s4.t = t;
+      s4Slider.max = max;
+      s4ValOut.textContent = t.toFixed(2);
+      if (state.activeStage === 4) renderStage4();
+    }
+    s4Slider.addEventListener('input', s4Sync);
+    s4Horiz.addEventListener('change', () => {
+      state.s4.feature = s4Horiz.checked ? 1 : 0;
+      const max = state.s4.feature === 0 ? 10 : 14;
+      s4Slider.max = max;
+      s4Slider.value = (max / 2).toFixed(2);
+      s4Sync();
+    });
+    s4Apply.addEventListener('click', () => {
+      const b = state.s4.best;
+      if (!b) return;
+      state.s4.feature = b.feature;
+      state.s4.t = b.threshold;
+      s4Horiz.checked = (b.feature === 1);
+      const max = b.feature === 0 ? 10 : 14;
+      s4Slider.max = max;
+      s4Slider.value = b.threshold.toFixed(2);
+      s4ValOut.textContent = b.threshold.toFixed(2);
+      renderStage4();
+    });
+
+    const s5Slider = document.getElementById('s5Slider');
+    const s5ValOut = document.getElementById('s5ValOut');
+    s5Slider.addEventListener('input', () => {
+      state.s5.depth = +s5Slider.value;
+      s5ValOut.textContent = state.s5.depth;
+      if (state.activeStage === 5) renderStage5();
+    });
+
+    const s7Slider = document.getElementById('s7Slider');
+    const s7ValOut = document.getElementById('s7ValOut');
+    s7Slider.addEventListener('input', () => {
+      state.s7.depth = +s7Slider.value;
+      s7ValOut.textContent = state.s7.depth;
+      if (state.activeStage === 7) renderStage7();
+    });
+
+    // ---------------- IntersectionObserver ----------------
+    const sections = document.querySelectorAll('.scroll-stage');
+    const ratios = new Map();
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        const n = +e.target.dataset.stage;
+        ratios.set(n, e.intersectionRatio);
+        e.target.classList.toggle('stage-active', e.intersectionRatio > 0.4);
+      });
+      let best = null, bestRatio = 0;
+      for (const [n, r] of ratios) {
+        if (r > bestRatio) { best = n; bestRatio = r; }
+      }
+      if (best !== null && bestRatio > 0.25) renderStage(best);
+    }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) });
+    sections.forEach(s => io.observe(s));
+
+    // Initial render.
+    renderStage(1);
+  </script>
+</body>
+</html>

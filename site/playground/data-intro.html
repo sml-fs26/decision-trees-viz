@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meet the data — Classification Trees</title>
+
+  <!-- Fonts (also loaded by index.html; included here so this page works standalone) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false},{left:'$',right:'$',display:false}]});"></script>
+
+  <!-- D3 -->
+  <script defer src="https://d3js.org/d3.v7.min.js"></script>
+
+  <!-- Shared styles -->
+  <link rel="stylesheet" href="./shared/style.css" />
+
+  <style>
+    /* Page-local tweaks */
+    .pg-nav {
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--c-border);
+      font-size: 13px;
+      color: var(--c-ink-muted);
+      background: var(--c-bg);
+    }
+    .pg-nav a { color: var(--c-ink-muted); }
+
+    .top-bar { top: 34px; } /* sit just below the pg-nav */
+
+    .scroll-viz {
+      top: 96px; /* clear pg-nav + top-bar */
+      height: calc(100vh - 120px);
+    }
+    .viz-card {
+      width: 100%;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .controls-panel {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13.5px;
+    }
+    .controls-panel .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .controls-panel label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--c-ink-muted);
+    }
+    .controls-panel input[type="number"] {
+      width: 72px;
+      padding: 4px 6px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      border: 1px solid var(--c-border);
+      border-radius: 3px;
+      background: #fff;
+    }
+    .controls-panel input[type="range"] { flex: 1; min-width: 120px; }
+    .controls-panel .val {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--c-ink);
+      min-width: 42px;
+      text-align: right;
+    }
+    .controls-panel button {
+      background: var(--c-ink);
+      color: var(--c-bg);
+      padding: 6px 12px;
+      border: none;
+      border-radius: 3px;
+      font: 600 13px var(--sans);
+      cursor: pointer;
+    }
+    .controls-panel button:hover { filter: brightness(1.15); }
+    .controls-panel .dimmed { opacity: 0.45; pointer-events: none; }
+
+    .kicker {
+      font-size: 11.5px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--c-quinlan);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .scroll-stage blockquote {
+      border-left: 3px solid var(--c-quinlan);
+      padding: 2px 0 2px 14px;
+      margin: 14px 0;
+      font-style: italic;
+      color: var(--c-ink);
+    }
+
+    .coda {
+      max-width: 760px;
+      margin: 40px auto 80px;
+      padding: 0 24px;
+    }
+    .coda .nav-next {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 10px 18px;
+      background: var(--c-quinlan);
+      color: #fff;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .coda .nav-next:hover { filter: brightness(1.12); text-decoration: none; }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      color: var(--c-ink-muted);
+      margin-right: 10px;
+    }
+    .legend-chip .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block;
+    }
+    .legend-chip .dash {
+      width: 18px; height: 0;
+      border-top: 2px dashed var(--c-truth);
+      display: inline-block;
+    }
+
+    .formal-block {
+      padding: 14px 18px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 5px;
+      margin: 14px 0;
+    }
+    .formal-block p { margin: 6px 0; font-size: 15.5px; }
+
+    .f-item.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <nav class="pg-nav">
+    <a href="../index.html">← back to the playground</a>
+  </nav>
+
+  <div class="top-bar">
+    <span class="brand">Classification Trees · Meet the data</span>
+    <div class="formula-tracker" id="formulaTracker" aria-live="polite">
+      <span class="f-item hidden" data-f="partition">\( (S_1,\dots,S_K) \) partitions \( \mathbb{R}^d \)</span>
+      <span class="f-item hidden" data-f="tree">tree: \( (S_i,\ell_i) \)</span>
+    </div>
+    <span class="stage-progress">Stage <span id="stageNum">1</span> / 5</span>
+  </div>
+
+  <main class="scroll-container">
+    <div class="scroll-narrative" id="narrative">
+
+      <section class="scroll-stage" data-stage="1">
+        <div class="kicker">Stage 1</div>
+        <h2>Two students</h2>
+        <p>Meet <strong>Alice</strong> and <strong>Bob</strong>. Two students in the same lecture hall.</p>
+        <p>We measure two things about each of them:</p>
+        <ul>
+          <li><strong>\(X_1\)</strong>: hours studied per week (somewhere between 0 and 10).</li>
+          <li><strong>\(X_2\)</strong>: lectures attended out of 14.</li>
+        </ul>
+        <p>Alice studies about <strong>3 hours</strong> a week and makes it to <strong>6 lectures</strong>. Bob studies <strong>7 hours</strong> and attends <strong>11</strong>. Two dots on a 2D plane. That's it for now — no labels, no rules, no tree.</p>
+        <p><em>A student is a point in \( \mathbb{R}^2 \).</em></p>
+      </section>
+
+      <section class="scroll-stage" data-stage="2">
+        <div class="kicker">Stage 2</div>
+        <h2>A label appears</h2>
+        <p>The semester ends. The exam happens. Each student gets an outcome.</p>
+        <p>Alice <strong style="color:var(--c-class-a)">passed</strong>. Bob <strong style="color:var(--c-class-b)">failed</strong>. We colour each dot by the outcome: pink for pass, blue for fail.</p>
+        <blockquote>
+          Now each student has a label. <em>Classification</em> is finding the rule that assigns it.
+        </blockquote>
+        <p>Two dots isn't much of a pattern. We need more students.</p>
+      </section>
+
+      <section class="scroll-stage" data-stage="3">
+        <div class="kicker">Stage 3</div>
+        <h2>The cohort arrives</h2>
+        <p>150 students spill onto the plot. Each one is still a pair \((X_1, X_2)\), and each one is now coloured by their outcome.</p>
+        <p>Look for a bit. There <em>is</em> structure — students with more hours and more attendance tend to pass. But it's messy. Pass and fail overlap near the middle. Some students who studied a lot still failed. Some who barely showed up somehow passed.</p>
+        <div class="toystory">
+          Real data is noisy. Exam days have lucky breaks and unlucky ones. The label you see is the truth plus a little randomness.
+        </div>
+        <p>Use the <strong>noise level</strong> slider below to see how messy it gets.</p>
+      </section>
+
+      <section class="scroll-stage" data-stage="4">
+        <div class="kicker">Stage 4</div>
+        <h2>The true boundary</h2>
+        <p>Secretly, there <em>is</em> a rule. The world was built with one. For this cohort:</p>
+        <p style="text-align:center;">\( \text{pass} \iff X_1 + X_2 > 12 \)</p>
+        <p>We draw it as a <span style="color:var(--c-truth);font-weight:600;">gold dashed line</span>. Look how well (and not perfectly) it separates pink from blue.</p>
+        <blockquote>
+          Somewhere out there, a rule decides the label. Our job is to learn it from the data.
+        </blockquote>
+        <p>Flip the <strong>show true boundary</strong> toggle below to hide and reveal the line.</p>
+        <div class="keyinsight">
+          In the real world, you never get to see the gold line. You only see the points. A good classifier recovers <em>something close to</em> the gold line from the dots alone.
+        </div>
+      </section>
+
+      <section class="scroll-stage" data-stage="5">
+        <div class="kicker">Stage 5</div>
+        <h2>The formal setup</h2>
+        <p>Before we learn anything, we fix the language. Straight from the lecture:</p>
+
+        <div class="formal-block">
+          <p><strong>Partition.</strong> A <em>partition</em> of \( \mathbb{R}^d \) is a tuple \( (S_1, \dots, S_K) \) of disjoint subsets whose union is \( \mathbb{R}^d \):</p>
+          <p style="text-align:center;">\[ S_i \cap S_j = \emptyset \text{ for } i \neq j, \qquad S_1 \cup \dots \cup S_K = \mathbb{R}^d. \]</p>
+        </div>
+
+        <div class="formal-block">
+          <p><strong>Classification tree.</strong> A classification tree is a sequence of pairs</p>
+          <p style="text-align:center;">\[ (S_1, \ell_1), \dots, (S_K, \ell_K), \qquad \ell_i \in \{1, \dots, M\}. \]</p>
+          <p>Its <em>induced function</em> is \( t : \mathbb{R}^d \to \{1, \dots, M\} \) with \( t(x) = \ell_i \) whenever \( x \in S_i \).</p>
+          <p>Given a dataset \( D = \{(x_1, y_1), \dots, (x_n, y_n)\} \subset \mathbb{R}^d \times \{1, \dots, M\} \), the tree partitions \( D \) into \( D_1, \dots, D_K \), where \( D_i \) holds the points whose \( x \) falls in \( S_i \).</p>
+        </div>
+
+        <p>That's the <em>what</em>. Next up: the <em>how</em>. How do we actually carve \( \mathbb{R}^2 \) into regions just by looking at the dots?</p>
+
+        <div class="char-card">
+          <div class="char-avatar">Q</div>
+          <div class="char-body">
+            <div class="char-name">Dr. Quinlan</div>
+            A researcher who likes to split things in half and see what happens. He'll build the first tree with you on the next page.
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="scroll-viz" id="vizPane">
+      <div class="viz-card">
+        <div id="scatter"></div>
+        <div style="margin-top:6px;padding-left:2px;">
+          <span class="legend-chip"><span class="dot" style="background:#B83280"></span>passed</span>
+          <span class="legend-chip"><span class="dot" style="background:#3182CE"></span>failed</span>
+          <span class="legend-chip"><span class="dash"></span>true boundary</span>
+        </div>
+
+        <div class="controls-panel" id="controls">
+          <div class="row">
+            <label>seed
+              <input type="number" id="seedInput" value="42" step="1" />
+            </label>
+            <button id="btnRegenerate">Regenerate</button>
+          </div>
+          <div class="row" id="rowBoundary">
+            <label>
+              <input type="checkbox" id="chkBoundary" />
+              show true boundary
+            </label>
+          </div>
+          <div class="row" id="rowNoise">
+            <label style="flex:1;">
+              noise level
+              <input type="range" id="sldNoise" min="0" max="0.20" step="0.01" value="0.05" />
+              <span class="val" id="valNoise">0.05</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section class="coda">
+    <p style="font-family:var(--serif);font-style:italic;color:var(--c-ink-muted);font-size:15px;">
+      The data is on the table. The rule is hiding in plain sight. Now, how do we find the partition from the data?
+    </p>
+    <a href="tree-builder.html#stage-1" class="nav-next">Meet Dr. Quinlan →</a>
+  </section>
+
+  <script type="module">
+    import { generateData, TRUE_BOUNDARY } from './shared/dgp.js';
+    import { createScatter2D, PALETTE } from './shared/plot.js';
+
+    // ------------------------------------------------------------------
+    // State
+    // ------------------------------------------------------------------
+    const state = {
+      activeStage: 1,
+      seed: 42,
+      noise: 0.05,
+      showBoundary: false,    // only meaningful from stage 4
+      sample: null            // {X1, X2, y}
+    };
+
+    // Fixed demo points for stages 1 and 2 (Alice, Bob).
+    const DEMO = {
+      X1: Float64Array.from([3, 7]),
+      X2: Float64Array.from([6, 11]),
+      yLabelled: Int8Array.from([1, 0]),   // Alice passed (pink), Bob failed (blue)
+      yNone:     Int8Array.from([-1, -1])  // sentinel: render as neutral
+    };
+
+    function regenSample() {
+      state.sample = generateData(150, state.seed, {
+        noise: state.noise,
+        boundary: 'linear'
+      });
+    }
+    regenSample();
+
+    // ------------------------------------------------------------------
+    // Scatter (single instance, reused across stages)
+    // ------------------------------------------------------------------
+    const scatter = createScatter2D(document.getElementById('scatter'), {
+      width: 520,
+      height: 420,
+      xDomain: [0, 10],
+      yDomain: [0, 14],
+      xLabel: 'X₁ — hours studied',
+      yLabel: 'X₂ — lectures attended'
+    });
+
+    // We want custom renderings (neutral dots, labelled Alice/Bob markers,
+    // fading cohort). Plot.js renderPoints colours by y∈{0,1}; we drive it
+    // directly by passing crafted data arrays, plus add our own overlay
+    // layer for names.
+    const svgRoot = scatter.svg;                // d3 selection of <svg>
+    // Append a dedicated 'annotations' <g> to the svg's inner group.
+    // We'll find the inner g (the first <g> child) and append there so it
+    // shares the margin transform.
+    const innerG = svgRoot.select('g');
+    const annG = innerG.append('g').attr('class', 'annotations');
+
+    function clearAnnotations() {
+      annG.selectAll('*').remove();
+    }
+
+    function drawDemoPoints({ labelled }) {
+      // Renders Alice and Bob as a tiny 2-point dataset (possibly with
+      // labels). Done by calling scatter.update with just these two points,
+      // then overlaying names.
+      if (labelled) {
+        scatter.update({ X1: DEMO.X1, X2: DEMO.X2, y: Int8Array.from([1, 0]) });
+      } else {
+        // Neutral grey: pass y=-1 so the colour logic picks neither pink
+        // nor blue (it's a ternary on y[i]===1 → pink else blue, so we
+        // need a workaround: draw all as class-0-blue, then re-colour via
+        // annotation layer). Simpler: render via annotations only.
+        scatter.update({
+          X1: new Float64Array(0), X2: new Float64Array(0), y: new Int8Array(0)
+        });
+        const xS = scatter.xScale, yS = scatter.yScale;
+        for (let i = 0; i < 2; i++) {
+          annG.append('circle')
+            .attr('cx', xS(DEMO.X1[i]))
+            .attr('cy', yS(DEMO.X2[i]))
+            .attr('r', 6)
+            .attr('fill', '#9aa0a6')
+            .attr('stroke', '#fff').attr('stroke-width', 1);
+        }
+      }
+      // Name labels
+      const xS = scatter.xScale, yS = scatter.yScale;
+      const names = ['Alice', 'Bob'];
+      for (let i = 0; i < 2; i++) {
+        annG.append('text')
+          .attr('x', xS(DEMO.X1[i]) + 10)
+          .attr('y', yS(DEMO.X2[i]) - 8)
+          .attr('font-family', 'Inter, sans-serif')
+          .attr('font-size', 12)
+          .attr('font-weight', 600)
+          .attr('fill', labelled
+              ? (i === 0 ? PALETTE.classA : PALETTE.classB)
+              : '#6a6a6a')
+          .text(names[i]);
+      }
+      // Make sure the 2 plotted circles are bigger than the cohort size.
+      // (Only applies when labelled=true: we drew them via scatter.update.)
+      if (labelled) {
+        innerG.select('g.points').selectAll('circle').attr('r', 6);
+      }
+    }
+
+    function drawCohort({ highlightDemo = false, opacity = 0.85 } = {}) {
+      scatter.update(state.sample);
+      innerG.select('g.points').selectAll('circle')
+        .attr('r', 4)
+        .attr('opacity', opacity);
+
+      if (highlightDemo) {
+        // Overlay Alice and Bob on top of the cohort in their original
+        // positions so the reader can still spot them.
+        const xS = scatter.xScale, yS = scatter.yScale;
+        const names = ['Alice', 'Bob'];
+        for (let i = 0; i < 2; i++) {
+          annG.append('circle')
+            .attr('cx', xS(DEMO.X1[i]))
+            .attr('cy', yS(DEMO.X2[i]))
+            .attr('r', 7)
+            .attr('fill', i === 0 ? PALETTE.classA : PALETTE.classB)
+            .attr('stroke', '#2a2a2a').attr('stroke-width', 1.2);
+          annG.append('text')
+            .attr('x', xS(DEMO.X1[i]) + 10)
+            .attr('y', yS(DEMO.X2[i]) - 8)
+            .attr('font-family', 'Inter, sans-serif')
+            .attr('font-size', 12)
+            .attr('font-weight', 600)
+            .attr('fill', i === 0 ? PALETTE.classA : PALETTE.classB)
+            .text(names[i]);
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Stage renderers — every one starts with a clear reset.
+    // ------------------------------------------------------------------
+    function clearAll() {
+      clearAnnotations();
+      scatter.setBoundary(null);
+      scatter.setSplit(null);
+      scatter.setTree(null);
+      scatter.highlightIndices(null);
+    }
+
+    function renderStage1() {
+      clearAll();
+      drawDemoPoints({ labelled: false });
+    }
+
+    function renderStage2() {
+      clearAll();
+      drawDemoPoints({ labelled: true });
+    }
+
+    function renderStage3() {
+      clearAll();
+      drawCohort({ highlightDemo: true });
+    }
+
+    function renderStage4() {
+      clearAll();
+      drawCohort({ highlightDemo: false });
+      // Stage 4 always shows the boundary when this stage is active,
+      // regardless of the checkbox — but we also respect the toggle so
+      // the user can hide it if they want to.
+      if (state.showBoundary) {
+        scatter.setBoundary(TRUE_BOUNDARY.linear);
+      } else {
+        // On first entry to stage 4, force the toggle on.
+        const chk = document.getElementById('chkBoundary');
+        if (!chk.dataset.userTouched) {
+          state.showBoundary = true;
+          chk.checked = true;
+          scatter.setBoundary(TRUE_BOUNDARY.linear);
+        }
+      }
+    }
+
+    function renderStage5() {
+      clearAll();
+      drawCohort({ highlightDemo: false });
+      if (state.showBoundary) scatter.setBoundary(TRUE_BOUNDARY.linear);
+    }
+
+    const stageRenderers = {
+      1: renderStage1,
+      2: renderStage2,
+      3: renderStage3,
+      4: renderStage4,
+      5: renderStage5
+    };
+
+    // ------------------------------------------------------------------
+    // Formula tracker — reveal partition / tree lines at stage 5.
+    // ------------------------------------------------------------------
+    function updateFormulaTracker(n) {
+      const partEl = document.querySelector('.f-item[data-f="partition"]');
+      const treeEl = document.querySelector('.f-item[data-f="tree"]');
+      if (n >= 5) {
+        partEl.classList.remove('hidden');
+        treeEl.classList.remove('hidden');
+      } else {
+        partEl.classList.add('hidden');
+        treeEl.classList.add('hidden');
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Controls — dim the ones that aren't meaningful at the current stage.
+    // ------------------------------------------------------------------
+    function updateControlAvailability(n) {
+      const rowBoundary = document.getElementById('rowBoundary');
+      const rowNoise    = document.getElementById('rowNoise');
+      rowBoundary.classList.toggle('dimmed', n < 4);
+      rowNoise.classList.toggle('dimmed',    n < 3);
+    }
+
+    // ------------------------------------------------------------------
+    // Main dispatch
+    // ------------------------------------------------------------------
+    function renderStage(n) {
+      state.activeStage = n;
+      document.getElementById('stageNum').textContent = n;
+      updateFormulaTracker(n);
+      updateControlAvailability(n);
+      // Mark active narrative section.
+      document.querySelectorAll('.scroll-stage').forEach(s => {
+        s.classList.toggle('stage-active', +s.dataset.stage === n);
+      });
+      const fn = stageRenderers[n];
+      if (fn) fn();
+      // Re-render math inside any newly-visible content (formula tracker).
+      if (typeof window.renderMathInElement === 'function') {
+        window.renderMathInElement(document.getElementById('formulaTracker'), {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '$', right: '$', display: false }
+          ]
+        });
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // IntersectionObserver — pick the highest-visible-ratio stage.
+    // ------------------------------------------------------------------
+    const sections = document.querySelectorAll('.scroll-stage');
+    const ratios = new Map();
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const n = +entry.target.dataset.stage;
+        ratios.set(n, entry.intersectionRatio);
+      });
+      let best = null, bestRatio = 0;
+      for (const [n, r] of ratios) {
+        if (r > bestRatio) { best = n; bestRatio = r; }
+      }
+      if (best !== null && best !== state.activeStage && bestRatio > 0.25) {
+        renderStage(best);
+      }
+    }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) });
+    sections.forEach(s => io.observe(s));
+
+    // ------------------------------------------------------------------
+    // Controls wiring
+    // ------------------------------------------------------------------
+    const seedInput  = document.getElementById('seedInput');
+    const btnRegen   = document.getElementById('btnRegenerate');
+    const chkBound   = document.getElementById('chkBoundary');
+    const sldNoise   = document.getElementById('sldNoise');
+    const valNoise   = document.getElementById('valNoise');
+
+    function applyRegen() {
+      const s = parseInt(seedInput.value, 10);
+      state.seed = Number.isFinite(s) ? s : 42;
+      regenSample();
+      renderStage(state.activeStage);
+    }
+
+    seedInput.addEventListener('change', applyRegen);
+    btnRegen.addEventListener('click', applyRegen);
+
+    chkBound.addEventListener('change', (e) => {
+      state.showBoundary = e.target.checked;
+      e.target.dataset.userTouched = '1';
+      renderStage(state.activeStage);
+    });
+
+    sldNoise.addEventListener('input', (e) => {
+      state.noise = parseFloat(e.target.value);
+      valNoise.textContent = state.noise.toFixed(2);
+      regenSample();
+      renderStage(state.activeStage);
+    });
+
+    // ------------------------------------------------------------------
+    // Keyboard nav
+    // ------------------------------------------------------------------
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea')) return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        const next = Math.min(5, state.activeStage + 1);
+        const target = document.querySelector(`[data-stage="${next}"]`);
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        const prev = Math.max(1, state.activeStage - 1);
+        const target = document.querySelector(`[data-stage="${prev}"]`);
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
+    // ------------------------------------------------------------------
+    // Initial render
+    // ------------------------------------------------------------------
+    renderStage(1);
+  </script>
+</body>
+</html>
