@@ -1,30 +1,39 @@
-# decision-trees-viz — bootstrap
+# decision-trees-viz
 
-This directory contains bootstrap instructions and reference files for building an interactive website about **classification trees** in the style of the existing regression playground at https://github.com/carloscotrini/sml_lab_26.
+Interactive pedagogical website teaching **classification trees**, built for the ETH Zurich course *Stochastics and Machine Learning* (Spring 2026, lecture 15).
 
-## For the human operator
+Companion to the regression site at https://carloscotrini.github.io/sml_lab_26/playground/.
 
-1. Clone the target repo: `git clone git@github.com:sml-fs26/decision-trees-viz.git`
-2. Copy the CONTENTS of this bootstrap directory into the repo (or put them in a sibling `bootstrap/` folder at the repo root).
-3. Open a new Claude Code session in the repo root.
-4. Instruct Claude Code to read `00_CONTEXT.md` first, then follow the phased plan.
+## Live site
 
-## Files in this bootstrap
+https://sml-fs26.github.io/decision-trees-viz/
+
+## Local preview
+
+ES modules require a real server:
 
 ```
-00_CONTEXT.md        – initial briefing for the new Claude instance (read first)
-01_PLAN.md           – multi-phase build plan (foundation → pages → issues)
-STYLE_GUIDE.md       – visual design conventions (palette, typography, boxes)
-ARCHITECTURE.md      – folder structure and module patterns
-SLIDES_CONTENT.md    – extracted lecture content (transcribed from the slides)
-PEDAGOGY.md          – the Bruner-spiral philosophy + character conventions
-reference/           – actual files from the regression playground to study
-├── README.md        – what each reference file demonstrates
-├── shared_*.js      – shared JS modules (PRNG, regression, plotting)
-├── shared_style.css – CSS tokens and component styles
-├── example_*.html   – exemplary pages at different levels of complexity
+python3 -m http.server 8000
+# open http://localhost:8000/site/
 ```
 
-## Scope note
+## Layout
 
-This is a substantial project (weeks of work). Launch multiple agents in parallel where possible — see `01_PLAN.md` for the breakdown.
+```
+site/
+├── index.html                      landing page (hero + 2 cards)
+└── playground/
+    ├── data-intro.html             Page 1 — meet the data (5-stage spiral)
+    ├── tree-builder.html           Page 2 — Dr. Quinlan builds a tree (7 stages)
+    └── shared/
+        ├── dgp.js                  seeded PRNG + 2D classification generator
+        ├── tree.js                 entropy, split search, greedy training
+        ├── plot.js                 D3 helpers: scatter, decision regions, tree diagram
+        └── style.css               design tokens + component styles
+```
+
+## Deploy
+
+Pushed to `main` → GitHub Actions (`.github/workflows/deploy.yml`) publishes `site/` to GitHub Pages.
+
+Bootstrap documents (planning, pedagogy, style, reference) live at the repo root for the agents working on the build.
