@@ -123,6 +123,7 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01e
   font-family: var(--sans);
   font-size: 13px;
   color: var(--c-ink-muted);
+  overflow-x: auto;
 }
 .top-bar .brand {
   font-family: var(--serif);
@@ -279,6 +280,30 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01e
 .pg-btn:hover { opacity: 0.9; }
 
 .muted { color: var(--c-ink-muted); }
+
+/* ---------------------------------------------------------- */
+/* Narrow-viewport overrides                                   */
+/* ---------------------------------------------------------- */
+@media (max-width: 640px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .landing { padding: 48px 20px 40px; }
+  .landing .hero h1 { font-size: 36px; }
+  .top-bar { gap: 12px; padding: 8px 14px; }
+}
+
+/* ---------------------------------------------------------- */
+/* Focus ring (keyboard nav)                                    */
+/* ---------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--c-quinlan);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+input[type="range"]:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="number"]:focus-visible,
+button:focus-visible,
+a:focus-visible { outline: 2px solid var(--c-quinlan); outline-offset: 2px; }
 
 /* ---------------------------------------------------------- */
 /* Reduced motion                                              */

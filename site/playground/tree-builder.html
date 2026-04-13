@@ -248,7 +248,7 @@
 <body>
   <div class="top-bar">
     <a class="back-link" href="./data-intro.html">← Meet the data</a>
-    <span class="brand">Classification Trees · Build a tree</span>
+    <a class="brand" href="../index.html" style="text-decoration:none;">Classification Trees · Build a tree</a>
     <div class="formula-tracker" id="formulaTracker" aria-live="polite">
       <span class="f-item" data-f="H">\( H(D) = -\sum_j p_j \log_2 p_j \)</span>
       <span class="f-item" data-f="Q">\( Q(D,f,t) = \frac{|D_L|}{|D|} H(D_L) + \frac{|D_R|}{|D|} H(D_R) \)</span>
@@ -296,11 +296,11 @@
         <div class="controls">
           <div class="row">
             <span class="label">threshold</span>
-            <input type="range" id="s2Slider" min="0" max="14" step="0.05" value="5" />
+            <input type="range" id="s2Slider" min="0" max="14" step="0.05" value="5" aria-label="split threshold" />
             <span class="val" id="s2ValOut">5.00</span>
           </div>
           <label class="toggle">
-            <input type="checkbox" id="s2Horiz" /> Split on X₂ (horizontal) instead of X₁
+            <input type="checkbox" id="s2Horiz" aria-label="Split on X2 instead of X1" /> Split on X₂ (horizontal) instead of X₁
           </label>
         </div>
 
@@ -319,6 +319,9 @@
           <div class="ex"><div class="dots"><span style="color:var(--c-class-a);">●●●</span><span style="color:var(--c-class-b);">●</span></div>75 / 25<div class="h">H ≈ 0.81</div></div>
           <div class="ex"><div class="dots"><span style="color:var(--c-class-a);">●●●●</span></div>pure<div class="h">H = 0.00</div></div>
         </div>
+        <p style="font-size:12.5px;color:var(--c-ink-muted);margin-top:-4px;">
+          <em>(The lecture slide prints 0.56 for the 75/25 case; the correct value is \(-0.75\log_2 0.75 - 0.25\log_2 0.25 \approx 0.81\).)</em>
+        </p>
 
         <p>When Dr. Quinlan splits the data with a line \((f, t)\), he gets two children \(D_L\) and \(D_R\). The quality of the split is their <strong>weighted-sum entropy</strong>:</p>
         <p>\[ Q(D, f, t) = \frac{|D_L|}{|D|}\, H(D_L) + \frac{|D_R|}{|D|}\, H(D_R) \]</p>
@@ -328,11 +331,11 @@
         <div class="controls">
           <div class="row">
             <span class="label">threshold</span>
-            <input type="range" id="s3Slider" min="0" max="14" step="0.05" value="5" />
+            <input type="range" id="s3Slider" min="0" max="14" step="0.05" value="5" aria-label="split threshold" />
             <span class="val" id="s3ValOut">5.00</span>
           </div>
           <label class="toggle">
-            <input type="checkbox" id="s3Horiz" /> Split on X₂
+            <input type="checkbox" id="s3Horiz" aria-label="Split on X2 instead of X1" /> Split on X₂
           </label>
         </div>
       </section>
@@ -345,16 +348,16 @@
         <div class="controls">
           <div class="row">
             <span class="label">threshold</span>
-            <input type="range" id="s4Slider" min="0" max="14" step="0.05" value="5" />
+            <input type="range" id="s4Slider" min="0" max="14" step="0.05" value="5" aria-label="split threshold" />
             <span class="val" id="s4ValOut">5.00</span>
           </div>
           <label class="toggle">
-            <input type="checkbox" id="s4Horiz" /> Split on X₂
+            <input type="checkbox" id="s4Horiz" aria-label="Split on X2 instead of X1" /> Split on X₂
           </label>
           <button id="s4Apply" class="primary">Apply best split</button>
         </div>
 
-        <p style="margin-top:12px;">Press “Apply best split” and the red line snaps to the argmin. That pair \((f^*, t^*)\) is the first cut Dr. Quinlan actually uses.</p>
+        <p style="margin-top:12px;">Press “Apply best split” and the red line snaps to \(\mathrm{argmin}_{(f,t)}\, Q(D, f, t)\). That pair \((f^*, t^*)\) is the first cut Dr. Quinlan actually uses.</p>
 
         <div class="keyinsight">
           <strong>Automation.</strong> We turn a subjective “good enough” into an objective minimisation: one sweep over candidates per feature.
@@ -371,7 +374,7 @@
         <div class="controls">
           <div class="row">
             <span class="label">max depth</span>
-            <input type="range" id="s5Slider" min="0" max="6" step="1" value="2" />
+            <input type="range" id="s5Slider" min="0" max="6" step="1" value="2" aria-label="maximum tree depth, 0 to 6" />
             <span class="val" id="s5ValOut">2</span>
           </div>
         </div>
@@ -408,7 +411,7 @@
         <div class="controls">
           <div class="row">
             <span class="label">max depth</span>
-            <input type="range" id="s7Slider" min="1" max="12" step="1" value="3" />
+            <input type="range" id="s7Slider" min="1" max="12" step="1" value="3" aria-label="maximum tree depth, 1 to 12" />
             <span class="val" id="s7ValOut">3</span>
           </div>
         </div>
@@ -948,6 +951,20 @@
       if (best !== null && bestRatio > 0.25) renderStage(best);
     }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) });
     sections.forEach(s => io.observe(s));
+
+    // ---------------- keyboard nav ----------------
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea, select')) return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        const next = Math.min(7, (state.activeStage || 1) + 1);
+        const target = document.querySelector(`[data-stage="${next}"]`);
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        const prev = Math.max(1, (state.activeStage || 1) - 1);
+        const target = document.querySelector(`[data-stage="${prev}"]`);
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
 
     // Initial render.
     renderStage(1);

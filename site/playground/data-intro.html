@@ -169,7 +169,7 @@
   </nav>
 
   <div class="top-bar">
-    <span class="brand">Classification Trees · Meet the data</span>
+    <a class="brand" href="../index.html" style="color:var(--c-ink);text-decoration:none;">Classification Trees · Meet the data</a>
     <div class="formula-tracker" id="formulaTracker" aria-live="polite">
       <span class="f-item hidden" data-f="partition">\( (S_1,\dots,S_K) \) partitions \( \mathbb{R}^d \)</span>
       <span class="f-item hidden" data-f="tree">tree: \( (S_i,\ell_i) \)</span>
@@ -272,20 +272,20 @@
         <div class="controls-panel" id="controls">
           <div class="row">
             <label>seed
-              <input type="number" id="seedInput" value="42" step="1" />
+              <input type="number" id="seedInput" value="42" step="1" aria-label="random seed" />
             </label>
-            <button id="btnRegenerate">Regenerate</button>
+            <button id="btnRegenerate" aria-label="Regenerate the cohort with the current seed">Regenerate</button>
           </div>
           <div class="row" id="rowBoundary">
             <label>
-              <input type="checkbox" id="chkBoundary" />
+              <input type="checkbox" id="chkBoundary" aria-label="Show the true boundary" />
               show true boundary
             </label>
           </div>
           <div class="row" id="rowNoise">
             <label style="flex:1;">
               noise level
-              <input type="range" id="sldNoise" min="0" max="0.20" step="0.01" value="0.05" />
+              <input type="range" id="sldNoise" min="0" max="0.20" step="0.01" value="0.05" aria-label="label noise level from 0 to 0.2" />
               <span class="val" id="valNoise">0.05</span>
             </label>
           </div>
@@ -464,26 +464,21 @@
     function renderStage4() {
       clearAll();
       drawCohort({ highlightDemo: false });
-      // Stage 4 always shows the boundary when this stage is active,
-      // regardless of the checkbox — but we also respect the toggle so
-      // the user can hide it if they want to.
-      if (state.showBoundary) {
+      // Stage 4 always shows the boundary on entry unless the user has
+      // explicitly hidden it. We do NOT mutate the checkbox state from
+      // the scroll handler — the narrative decides what is shown, the
+      // checkbox is a user override.
+      const userHid = chkBound.dataset.userTouched === '1' && !state.showBoundary;
+      if (!userHid) {
         scatter.setBoundary(TRUE_BOUNDARY.linear);
-      } else {
-        // On first entry to stage 4, force the toggle on.
-        const chk = document.getElementById('chkBoundary');
-        if (!chk.dataset.userTouched) {
-          state.showBoundary = true;
-          chk.checked = true;
-          scatter.setBoundary(TRUE_BOUNDARY.linear);
-        }
       }
     }
 
     function renderStage5() {
       clearAll();
       drawCohort({ highlightDemo: false });
-      if (state.showBoundary) scatter.setBoundary(TRUE_BOUNDARY.linear);
+      const userHid = chkBound.dataset.userTouched === '1' && !state.showBoundary;
+      if (!userHid) scatter.setBoundary(TRUE_BOUNDARY.linear);
     }
 
     const stageRenderers = {
