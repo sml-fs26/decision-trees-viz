@@ -38,10 +38,12 @@ export const TRUE_BOUNDARY = {
   circular:    (x1, x2) => ((x1 - 5) * (x1 - 5) + (x2 - 7) * (x2 - 7)) - 14,
   // Smooth max approximates x1>6 OR x2>10: positive iff either margin is positive.
   disjunction: (x1, x2) => Math.max(x1 - 6, x2 - 10),
-  // Wavy band: attendance must outpace a sinusoidal threshold in hours.
-  // Non-linear, non-axis-aligned — the staircase approximation a tree makes
-  // of this boundary is the pedagogical punchline.
-  wavy:        (x1, x2) => x2 - (7 + 2.5 * Math.sin(0.9 * x1))
+  // Tilted wavy band: combined effort (X1 + X2) must exceed a gently
+  // oscillating threshold. Strictly monotone in both features (more
+  // hours AND more lectures only ever helps), but non-linear and
+  // non-axis-aligned, so a tree has to staircase-approximate it.
+  // ∂score/∂x1 = 1 − 0.9·cos(0.9·x1) ≥ 0.1 > 0, and ∂score/∂x2 = 1.
+  wavy:        (x1, x2) => (x1 + x2) - (10 + Math.sin(0.9 * x1))
 };
 
 // Generate n labelled 2D points. Returns parallel typed arrays.
