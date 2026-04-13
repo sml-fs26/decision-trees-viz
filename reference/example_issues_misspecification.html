@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Wrong Shape — Dr. Bishop's polynomials — SML playground</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <link rel="stylesheet" href="../shared/style.css" />
+  <style>
+    :root {
+      --c-bg: #fbf8f3;
+      --c-ink: #2a2a2a;
+      --c-ink-muted: #5a5a5a;
+      --c-border: #e4dfd5;
+      --olsblue: #2E5EA8;
+      --truthgold: #D4A017;
+      --biasred: #C0392B;
+      --repairgreen: #27AE60;
+      --bishop: #8a4a9e;
+      --gauss:  #1b5e8e;
+    }
+    body {
+      background: var(--c-bg);
+      color: var(--c-ink);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+    }
+    .pg-nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 24px;
+      font-family: 'Inter', sans-serif;
+    }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 16px 24px 80px; }
+    h1 {
+      font-family: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+      font-weight: 500; font-size: 40px; line-height: 1.15;
+      letter-spacing: -0.01em; margin: 16px 0 6px;
+    }
+    .subtitle {
+      font-family: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+      font-style: italic; font-size: 20px; color: var(--c-ink-muted);
+      margin: 0 0 24px;
+    }
+    h2 {
+      font-family: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+      font-weight: 500; font-size: 26px; margin: 38px 0 10px;
+      letter-spacing: -0.005em;
+    }
+    h2 .num {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 11px; color: var(--c-ink-muted);
+      display: block; letter-spacing: 0.15em;
+      text-transform: uppercase; margin-bottom: 2px; font-weight: 400;
+    }
+    p { font-size: 16.5px; }
+
+    .bishop-intro {
+      display: flex; gap: 20px; align-items: flex-start;
+      background: #fff; border: 1px solid var(--c-border);
+      border-left: 4px solid var(--bishop);
+      border-radius: 4px; padding: 18px 22px;
+      margin: 18px 0;
+    }
+    .avatar { flex-shrink: 0; }
+    .quote { font-style: italic; color: #4a2a58; }
+
+    .note-box {
+      background: #fff8ea; border-left: 4px solid var(--truthgold);
+      padding: 14px 18px; border-radius: 3px;
+      font-size: 15.5px;
+      margin: 16px 0;
+    }
+    .lesson-box {
+      background: #efe9f4; border-left: 4px solid var(--bishop);
+      padding: 16px 20px; border-radius: 3px;
+      margin: 20px 0;
+    }
+
+    ol, ul { padding-left: 24px; }
+    li { margin: 6px 0; }
+
+    .playground {
+      background: #fff; border: 1px solid var(--c-border);
+      border-radius: 6px; padding: 22px 24px; margin: 20px 0;
+    }
+    .controls {
+      display: flex; align-items: center; gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      font-family: 'Inter', sans-serif; font-size: 14px;
+    }
+    .controls label { color: var(--c-ink-muted); }
+    .controls input[type=range] { flex: 1; min-width: 220px; }
+    .deg-val {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 16px; font-weight: 600; color: var(--bishop);
+      min-width: 22px; text-align: center;
+    }
+    .verdict {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 16px; margin: 2px 0 10px; color: var(--bishop);
+      min-height: 22px;
+    }
+    .metrics {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px 24px; margin-top: 14px;
+      font-family: 'Inter', sans-serif; font-size: 14px;
+    }
+    .metric { background: #fafafa; border: 1px solid var(--c-border);
+      border-radius: 4px; padding: 8px 12px; }
+    .metric .lbl { color: var(--c-ink-muted); font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.05em; }
+    .metric .val {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 17px; font-weight: 600;
+    }
+    .metric.train .val { color: var(--olsblue); }
+    .metric.test  .val { color: var(--biasred); }
+
+    .btn-row { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      font-family: 'Inter', sans-serif; font-size: 13px;
+      padding: 6px 14px; border: 1px solid var(--bishop);
+      background: #fff; color: var(--bishop);
+      border-radius: 3px; cursor: pointer;
+    }
+    .btn:hover { background: var(--bishop); color: #fff; }
+    .btn.secondary { border-color: var(--c-ink-muted); color: var(--c-ink-muted); }
+    .btn.secondary:hover { background: var(--c-ink-muted); color: #fff; }
+    .btn.active { background: var(--bishop); color: #fff; }
+
+    svg .train-pt { fill: var(--olsblue); stroke: #fff; stroke-width: 1.2; }
+    svg .test-pt  { fill: none; stroke: var(--biasred); stroke-width: 1.2; opacity: 0.55; }
+    svg .fit      { fill: none; stroke: var(--bishop); stroke-width: 2.2; }
+    svg .axis path, svg .axis line { stroke: #bfbdb3; }
+    svg .axis text { fill: var(--c-ink-muted); font-size: 11px; }
+    svg .axis-label { fill: var(--c-ink); font-size: 12px; }
+
+    .err-bars { margin-top: 16px; }
+    .bar-row { display: grid; grid-template-columns: 90px 1fr 80px;
+      align-items: center; gap: 8px; font-family: 'Inter', sans-serif;
+      font-size: 13px; margin: 6px 0; }
+    .bar-row .lbl { color: var(--c-ink-muted); }
+    .bar-row .bar-track {
+      height: 14px; background: #f3efe6; border-radius: 2px; overflow: hidden;
+    }
+    .bar-row .bar-fill { height: 100%; transition: width .25s; }
+    .bar-row.train .bar-fill { background: var(--olsblue); }
+    .bar-row.test  .bar-fill { background: var(--biasred); }
+    .bar-row .num {
+      font-family: 'SF Mono', Menlo, monospace; font-size: 12.5px;
+      text-align: right; color: var(--c-ink);
+    }
+
+    .equation-display { margin: 14px 0; text-align: center; }
+    .footer {
+      margin-top: 48px; padding-top: 18px;
+      border-top: 1px solid var(--c-border);
+      font-family: 'Inter', sans-serif; font-size: 14px;
+      color: var(--c-ink-muted);
+    }
+  </style>
+</head>
+<body>
+
+<nav class="pg-nav">
+  <a href="../hub.html">← Back to the hub</a>
+  <a href="../index.html">Playground home →</a>
+</nav>
+
+<main class="wrap">
+
+  <p style="font-family:'SF Mono', Menlo, monospace; font-size:11px;
+      letter-spacing:0.15em; text-transform:uppercase; color:var(--c-ink-muted);
+      margin:10px 0 0;">Issue 03 · The Wrong Shape</p>
+  <h1>Dr. Bishop and the polynomial abyss</h1>
+  <p class="subtitle">If the true curve isn't a line, a straight-line fit is wrong. But giving yourself "enough flexibility" is a trap with teeth.</p>
+
+  <!-- ============ SECTION 1: Dr. Bishop arrives ============ -->
+  <h2><span class="num">Section 1</span>A new researcher enters</h2>
+
+  <div class="bishop-intro">
+    <svg class="avatar" width="64" height="80" viewBox="0 0 64 80" aria-label="Dr. Bishop avatar">
+      <!-- neck / shoulders -->
+      <rect x="14" y="60" width="36" height="20" rx="6" fill="#8a4a9e"/>
+      <!-- face -->
+      <circle cx="32" cy="34" r="18" fill="#f5d6b8"/>
+      <!-- hair: long, swept -->
+      <path d="M14 32 Q14 14 32 14 Q50 14 50 32 Q50 36 48 40 L52 62 L44 62 Q44 40 40 38 Q34 46 24 42 Q16 42 16 50 L12 62 L20 62 L18 40 Q14 36 14 32 Z" fill="#4a2a58"/>
+      <!-- glasses -->
+      <circle cx="26" cy="34" r="4" fill="none" stroke="#2a2a2a" stroke-width="1.4"/>
+      <circle cx="38" cy="34" r="4" fill="none" stroke="#2a2a2a" stroke-width="1.4"/>
+      <line x1="30" y1="34" x2="34" y2="34" stroke="#2a2a2a" stroke-width="1.4"/>
+      <!-- smile -->
+      <path d="M27 42 Q32 46 37 42" fill="none" stroke="#2a2a2a" stroke-width="1.3" stroke-linecap="round"/>
+      <!-- nametag: small sinusoidal squiggle to mark her as the "curves" person -->
+      <path d="M10 72 Q14 68 18 72 T26 72" fill="none" stroke="#fff" stroke-width="1.5"/>
+    </svg>
+    <div>
+      <p style="margin:0 0 6px; font-weight:600; color:var(--bishop);">Dr. Bishop</p>
+      <p class="quote" style="margin:0;">"Dr. Gauss assumed the relationship is linear. What if it's curved? What if the first few lectures help a lot and later ones level off? Let me try polynomial regression."</p>
+    </div>
+  </div>
+
+  <p>Dr. Bishop arrives after Dr. Gauss has already fit a straight line to <i>Y</i> vs.&nbsp;<i>X₂</i>. She is unconvinced. Nothing in nature is truly linear; why should study outcomes be? She opens her notebook and writes down a plan: <b>polynomial regression</b> — same OLS machinery, but on curved features.</p>
+
+  <!-- ============ SECTION 2: Why X2, why polynomials? ============ -->
+  <h2><span class="num">Section 2</span>Why X₂, and why polynomials?</h2>
+
+  <p>Bishop doesn't pick <i>X</i>₂ (lectures attended) at random. She has reasons:</p>
+
+  <ol>
+    <li><b>X₂'s noise is homoscedastic.</b> In this DGP the noise term ε has variance proportional to |<i>X</i>₁|, not to <i>X</i>₂. Looking at <i>Y</i> as a function of <i>X</i>₂, the scatter around the true curve has roughly the same spread everywhere — a much cleaner setting to see the shape of a fitted curve.</li>
+    <li><b>Polynomials are universal approximators.</b> The Stone–Weierstrass theorem says, informally: <i>any continuous function on a bounded interval can be approximated arbitrarily well by a polynomial of high enough degree.</i> So polynomials are a very expressive tool — in principle, they can recover any smooth shape.</li>
+    <li><b>Small, clean dataset.</b> Bishop deliberately uses only <b>10 students</b>. With a handful of points the underfit / good-fit / overfit regimes are easy to see — this is the same pedagogical setup Christopher Bishop uses in PRML Figure 1.4.</li>
+  </ol>
+
+  <div class="note-box">
+    <b>Misspecification vs. omitted variables.</b> OVB is about a missing <i>variable</i>. Misspecification is about a wrong <i>shape</i>. You can have one without the other — and either can wreck your coefficients.
+  </div>
+
+  <!-- ============ SECTION 3: Small dataset ============ -->
+  <h2><span class="num">Section 3</span>Ten students</h2>
+
+  <p>Here is the sample Bishop draws from the shared exam-score DGP — ten students, plotted as <i>Y</i> (exam score) against <i>X</i>₂ (lectures attended).</p>
+
+  <div class="playground" style="padding:18px;">
+    <div id="scatter-only"></div>
+    <p class="muted" style="font-size:13.5px; color:var(--c-ink-muted); margin:8px 0 0;">Ten blue dots. Not much, but enough to see the story.</p>
+  </div>
+
+  <!-- ============ SECTION 4: polynomial as a linear model ============ -->
+  <h2><span class="num">Section 4</span>A polynomial is just a linear model in disguise</h2>
+
+  <p>The key — and often surprising — teaching point:</p>
+
+  <p style="font-size:18px; text-align:center; font-style:italic; color:var(--bishop);">
+    Polynomial regression is just linear regression with transformed features.
+  </p>
+
+  <p>Bishop writes the model</p>
+  <div class="equation-display">
+    \[ \hat{Y} \;=\; a_0 \;+\; a_1 X_2 \;+\; a_2 X_2^2 \;+\; a_3 X_2^3 \;+\; \ldots \;+\; a_d X_2^d. \]
+  </div>
+
+  <p>This has \(d+1\) coefficients. It is <i>linear in the coefficients</i> \((a_0, a_1, \ldots, a_d)\), even though it is nonlinear in \(X_2\). So you can fit it with ordinary least squares: build a design matrix whose columns are</p>
+
+  <div class="equation-display">
+    \[ \big[\, 1,\; X_2,\; X_2^2,\; X_2^3,\; \ldots,\; X_2^d \,\big] \]
+  </div>
+
+  <p>and run the same OLS you already know. Nothing new under the hood — just fancier columns.</p>
+
+  <!-- ============ SECTION 5: The degree slider ============ -->
+  <h2><span class="num">Section 5</span>The degree slider</h2>
+
+  <p>Now the experiment. Move the slider to change the polynomial degree \(d\). Watch the curve reshape, and watch the two error bars at the bottom — <span style="color:var(--olsblue); font-weight:600;">training error</span> on the 10 points, and <span style="color:var(--biasred); font-weight:600;">test error</span> on a large fresh sample from the same DGP.</p>
+
+  <div class="playground">
+    <div class="controls">
+      <label>Polynomial degree</label>
+      <input id="deg" type="range" min="0" max="9" step="1" value="3" />
+      <span class="deg-val" id="degVal">3</span>
+    </div>
+    <div class="verdict" id="verdict"></div>
+
+    <div id="main-viz"></div>
+
+    <div class="err-bars">
+      <div class="bar-row train">
+        <span class="lbl">Train MSE</span>
+        <div class="bar-track"><div class="bar-fill" id="barTrain" style="width:0"></div></div>
+        <span class="num" id="trainNum">—</span>
+      </div>
+      <div class="bar-row test">
+        <span class="lbl">Test MSE</span>
+        <div class="bar-track"><div class="bar-fill" id="barTest" style="width:0"></div></div>
+        <span class="num" id="testNum">—</span>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric train"><div class="lbl">Training R²</div><div class="val" id="r2">—</div></div>
+      <div class="metric test"><div class="lbl">Coefficients fit</div><div class="val" id="coefCount">—</div></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="toggleTest">Show fresh test data</button>
+      <button class="btn secondary" id="resetDeg">Reset to d = 3</button>
+    </div>
+    <p class="muted" style="font-size:13px; color:var(--c-ink-muted); margin:12px 0 0;">Test data: 400 fresh students drawn from the same DGP. The test MSE shown uses these out-of-sample points.</p>
+  </div>
+
+  <!-- ============ SECTION 6: Bishop diagram lesson ============ -->
+  <h2><span class="num">Section 6</span>What the slider tells you</h2>
+
+  <ul>
+    <li><b>d = 0</b> — a flat line. The model can't tilt. "Too rigid to capture anything," Bishop says. <i>Underfit.</i></li>
+    <li><b>d = 1</b> — a straight line. This is exactly Dr. Gauss's <i>Y</i> vs.&nbsp;<i>X</i>₂ fit. A reasonable approximation for the range of lectures in the sample.</li>
+    <li><b>d = 2–3</b> — a gentle curve. Training and test error both low. The sweet spot.</li>
+    <li><b>d = 5–7</b> — the curve starts to wiggle, chasing individual points. Training error shrinks; test error begins to rise.</li>
+    <li><b>d = 9</b> — with 10 data points and 10 coefficients, the polynomial passes <i>exactly</i> through every training point. Training MSE is essentially zero. The curve between points swings wildly. Test error explodes.</li>
+  </ul>
+
+  <p>This is Bishop's PRML Figure 1.4, live. A high-degree polynomial has "memorized" the training set — including its noise. Between points it has no reason to behave, and it doesn't.</p>
+
+  <!-- ============ SECTION 7: The lesson ============ -->
+  <h2><span class="num">Section 7</span>The lesson</h2>
+
+  <div class="lesson-box">
+    <p style="margin:0 0 8px;"><b>Polynomials are universal approximators. That is a double-edged sword.</b></p>
+    <p style="margin:0;">Enough flexibility to capture any shape, and enough flexibility to <b>memorize noise</b>. The right degree is neither the lowest (underfit) nor the highest (overfit) — it is the one that <i>generalizes</i>: low error on <b>data you haven't seen</b>.</p>
+  </div>
+
+  <p>Two notes before Bishop closes her notebook:</p>
+
+  <ul>
+    <li><b>Misspecification is not OVB.</b> OVB is a <i>missing variable</i> (the ghost <i>U</i>); misspecification is a <i>wrong shape</i>. Either one can make your coefficients lie. You can also have both at once.</li>
+    <li><b>The fix isn't "always use a bigger model."</b> More flexibility without more data is how you get the wild curves at <i>d</i> = 9. The proper tools — cross-validation, regularization, held-out test sets — come next.</li>
+  </ul>
+
+  <div class="footer">
+    <a href="../hub.html">← Back to the hub</a>
+  </div>
+
+</main>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<script type="module">
+  import { generateData } from '../shared/dgp.js';
+  import { ols } from '../shared/regression.js';
+
+  // Render KaTeX.
+  document.addEventListener('DOMContentLoaded', () => {
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: '\\[', right: '\\]', display: true },
+        { left: '\\(', right: '\\)', display: false }
+      ],
+      throwOnError: false
+    });
+  });
+
+  // -------- data --------
+  const TRAIN = generateData(10, 7);
+  const TEST  = generateData(400, 99);
+
+  const trainX = Array.from(TRAIN.X2);
+  const trainY = Array.from(TRAIN.Y);
+  const testX  = Array.from(TEST.X2);
+  const testY  = Array.from(TEST.Y);
+
+  // Build polynomial design matrix (rows of [x, x^2, ..., x^d]) without intercept —
+  // ols() prepends the intercept column itself.
+  function polyDesign(x, d) {
+    return x.map(v => {
+      const row = new Array(d);
+      let p = v;
+      for (let k = 0; k < d; k++) { row[k] = p; p *= v; }
+      return row;
+    });
+  }
+
+  function polyEval(coefs, x) {
+    // coefs = [a0, a1, ..., ad]
+    let y = coefs[0];
+    let p = x;
+    for (let k = 1; k < coefs.length; k++) { y += coefs[k] * p; p *= x; }
+    return y;
+  }
+
+  function fitPoly(d) {
+    if (d === 0) {
+      // degree 0 = intercept only; mean of y.
+      const m = trainY.reduce((a, b) => a + b, 0) / trainY.length;
+      return { coefs: [m] };
+    }
+    const X = polyDesign(trainX, d);
+    const res = ols(trainY, X);
+    return { coefs: res.coefficients };
+  }
+
+  function mse(yHat, y) {
+    let s = 0;
+    for (let i = 0; i < y.length; i++) { const r = y[i] - yHat[i]; s += r * r; }
+    return s / y.length;
+  }
+
+  // -------- plot setup --------
+
+  // small scatter (section 3)
+  (function drawScatterOnly() {
+    const width = 640, height = 280, m = { top: 14, right: 18, bottom: 40, left: 46 };
+    const svg = d3.select('#scatter-only').append('svg')
+      .attr('viewBox', `0 0 ${width} ${height}`)
+      .attr('width', '100%').attr('height', 'auto')
+      .style('max-width', '100%');
+    const xExt = d3.extent(trainX);
+    const yExt = d3.extent(trainY);
+    const xPad = (xExt[1] - xExt[0]) * 0.12, yPad = (yExt[1] - yExt[0]) * 0.12;
+    const x = d3.scaleLinear().domain([xExt[0]-xPad, xExt[1]+xPad]).range([m.left, width-m.right]);
+    const y = d3.scaleLinear().domain([yExt[0]-yPad, yExt[1]+yPad]).range([height-m.bottom, m.top]);
+    svg.append('g').attr('class','axis').attr('transform',`translate(0,${height-m.bottom})`)
+       .call(d3.axisBottom(x).ticks(6));
+    svg.append('g').attr('class','axis').attr('transform',`translate(${m.left},0)`)
+       .call(d3.axisLeft(y).ticks(5));
+    svg.append('text').attr('class','axis-label')
+       .attr('x', width/2).attr('y', height-6).attr('text-anchor','middle')
+       .text('X₂ (lectures attended)');
+    svg.append('text').attr('class','axis-label')
+       .attr('x', 12).attr('y', height/2)
+       .attr('transform', `rotate(-90, 12, ${height/2})`).attr('text-anchor','middle')
+       .text('Y (exam score)');
+    svg.selectAll('.train-pt').data(trainX).enter().append('circle')
+       .attr('class','train-pt').attr('r',5)
+       .attr('cx', d => x(d)).attr('cy', (d,i) => y(trainY[i]));
+  })();
+
+  // main viz (section 5)
+  const W = 680, H = 360, M = { top: 28, right: 20, bottom: 44, left: 50 };
+  const svg = d3.select('#main-viz').append('svg')
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('width', '100%').attr('height', 'auto')
+    .style('max-width', '100%');
+
+  // fixed domain wide enough to show extrapolation & test points
+  const allX = trainX.concat(testX);
+  const allY = trainY.concat(testY);
+  const xDom = [d3.min(allX) - 0.3, d3.max(allX) + 0.3];
+  // Y domain: clip to a sensible range (so degree-9 wild swings don't blow up the axes).
+  const yLo = d3.min(allY) - 4, yHi = d3.max(allY) + 4;
+
+  const xs = d3.scaleLinear().domain(xDom).range([M.left, W-M.right]);
+  const ys = d3.scaleLinear().domain([yLo, yHi]).range([H-M.bottom, M.top]);
+
+  svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-M.bottom})`)
+     .call(d3.axisBottom(xs).ticks(7));
+  svg.append('g').attr('class','axis').attr('transform',`translate(${M.left},0)`)
+     .call(d3.axisLeft(ys).ticks(6));
+  svg.append('text').attr('class','axis-label')
+     .attr('x', W/2).attr('y', H-8).attr('text-anchor','middle')
+     .text('X₂ (lectures attended)');
+  svg.append('text').attr('class','axis-label')
+     .attr('x', 14).attr('y', H/2)
+     .attr('transform', `rotate(-90, 14, ${H/2})`).attr('text-anchor','middle')
+     .text('Y (exam score)');
+
+  // clip path so wild polynomials don't scribble outside the axes
+  svg.append('clipPath').attr('id','plotClip').append('rect')
+     .attr('x', M.left).attr('y', M.top)
+     .attr('width', W - M.left - M.right).attr('height', H - M.top - M.bottom);
+
+  const plotG = svg.append('g').attr('clip-path', 'url(#plotClip)');
+
+  // test points group (hidden by default)
+  const testG = plotG.append('g').style('opacity', 0);
+  testG.selectAll('.test-pt').data(testX).enter().append('circle')
+    .attr('class','test-pt').attr('r',3)
+    .attr('cx', d => xs(d)).attr('cy', (d,i) => ys(testY[i]));
+
+  // training points on top
+  const trainG = plotG.append('g');
+  trainG.selectAll('.train-pt').data(trainX).enter().append('circle')
+    .attr('class','train-pt').attr('r',5.5)
+    .attr('cx', d => xs(d)).attr('cy', (d,i) => ys(trainY[i]));
+
+  // fitted curve
+  const fitPath = plotG.append('path').attr('class','fit');
+
+  // title overlay
+  const titleText = svg.append('text')
+    .attr('x', M.left).attr('y', 18)
+    .style('font-family', "'Fraunces', serif")
+    .style('font-size', '15px').style('font-style', 'italic')
+    .style('fill', 'var(--bishop)');
+
+  // -------- update --------
+  // sample the fit across x for plotting
+  function sampleCurve(coefs, nPts = 220) {
+    const out = [];
+    const x0 = xDom[0], x1 = xDom[1];
+    for (let i = 0; i < nPts; i++) {
+      const t = i / (nPts - 1);
+      const x = x0 + t * (x1 - x0);
+      out.push([x, polyEval(coefs, x)]);
+    }
+    return out;
+  }
+
+  const line = d3.line().x(d => xs(d[0])).y(d => ys(d[1]));
+
+  // reasonable MSE reference for bar scaling (updated as we see values)
+  const REF_MSE = 50; // full-bar reference; bars clip above
+
+  function verdictFor(d) {
+    if (d === 0)            return 'Degree 0 — a horizontal line. Too rigid to capture anything.';
+    if (d === 1)            return 'Degree 1 — Dr. Gauss\'s straight line. Not bad.';
+    if (d === 2 || d === 3) return `Degree ${d} — a gentle curve. Probably a good fit.`;
+    if (d <= 5)             return `Degree ${d} — starting to wiggle.`;
+    if (d <= 7)             return `Degree ${d} — chasing individual points.`;
+    if (d === 8)            return 'Degree 8 — the curve is memorizing, not learning.';
+    return 'Degree 9 — zero training error, but look between the points. This is overfitting.';
+  }
+
+  function update(d) {
+    const { coefs } = fitPoly(d);
+    const curve = sampleCurve(coefs);
+    fitPath.attr('d', line(curve));
+
+    // training predictions & MSE
+    const trainHat = trainX.map(x => polyEval(coefs, x));
+    const testHat  = testX.map(x => polyEval(coefs, x));
+    const trMSE = mse(trainHat, trainY);
+    const teMSE = mse(testHat,  testY);
+
+    // R² on train
+    const ybar = trainY.reduce((a,b)=>a+b,0) / trainY.length;
+    let tss = 0; for (const y of trainY) { const e = y - ybar; tss += e*e; }
+    const rss = trMSE * trainY.length;
+    const r2 = tss > 0 ? 1 - rss/tss : 0;
+
+    document.getElementById('degVal').textContent = d;
+    document.getElementById('trainNum').textContent = trMSE.toFixed(2);
+    document.getElementById('testNum').textContent  = teMSE < 1e4 ? teMSE.toFixed(2) : teMSE.toExponential(2);
+    document.getElementById('r2').textContent = r2.toFixed(3);
+    document.getElementById('coefCount').textContent = `${coefs.length} (d+1)`;
+    document.getElementById('verdict').textContent = verdictFor(d);
+
+    // bar widths — clip at REF_MSE for the blue/red visual; use log-ish cap for red
+    const tw = Math.max(0, Math.min(100, (trMSE / REF_MSE) * 100));
+    // test MSE can blow up: use soft cap via log scale when huge.
+    let teVis = teMSE;
+    const teCap = REF_MSE * 4;
+    const teDisplay = Math.min(100, (Math.min(teVis, teCap) / teCap) * 100);
+    document.getElementById('barTrain').style.width = tw + '%';
+    document.getElementById('barTest').style.width  = teDisplay + '%';
+
+    // title
+    let label = 'Good fit';
+    if (d === 0) label = 'Underfit';
+    else if (d === 1) label = 'Linear (Dr. Gauss)';
+    else if (d <= 3) label = 'Good fit';
+    else if (d <= 6) label = 'Starting to overfit';
+    else label = 'Overfit';
+    titleText.text(`Polynomial degree ${d} — ${label}`);
+  }
+
+  const degIn = document.getElementById('deg');
+  degIn.addEventListener('input', e => update(+e.target.value));
+  document.getElementById('resetDeg').addEventListener('click', () => {
+    degIn.value = 3; update(3);
+  });
+
+  const toggleBtn = document.getElementById('toggleTest');
+  let testVisible = false;
+  toggleBtn.addEventListener('click', () => {
+    testVisible = !testVisible;
+    testG.transition().duration(300).style('opacity', testVisible ? 1 : 0);
+    toggleBtn.textContent = testVisible ? 'Hide fresh test data' : 'Show fresh test data';
+    toggleBtn.classList.toggle('active', testVisible);
+  });
+
+  update(3);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>A spiral introduction to the DGP: SML playground</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <link rel="stylesheet" href="shared/style.css" />
+  <style>
+    :root {
+      --c-bg: #fbf8f3;
+      --c-ink: #2a2a2a;
+      --c-ink-muted: #5a5a5a;
+      --c-alice: #d4722c;
+      --c-bob:  #3c8dbc;
+      --c-noise: #9aa0a6;
+      --c-truth: #7b2cbf;
+      --c-est:  #2d8659;
+      --c-warn: #b5654a;
+      --c-border: #e4dfd5;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+    }
+
+    html, body {
+      margin: 0;
+      background: var(--c-bg);
+      color: var(--c-ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    a { color: var(--c-truth); }
+
+    .pg-nav {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--c-border);
+      font-size: 13px;
+      color: var(--c-ink-muted);
+    }
+    .pg-nav a { color: var(--c-ink-muted); text-decoration: none; }
+    .pg-nav a:hover { text-decoration: underline; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--c-bg);
+      border-bottom: 1px solid var(--c-border);
+      display: grid;
+      grid-template-columns: 220px 1fr 260px;
+      align-items: center;
+      padding: 10px 24px;
+      gap: 24px;
+      min-height: 74px;
+    }
+    .u-widget {
+      width: 200px;
+      height: 60px;
+      border: 1px solid var(--c-border);
+      border-radius: 4px;
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .u-widget .veil {
+      position: absolute; inset: 0;
+      background: rgba(150,150,155,0.72);
+      backdrop-filter: blur(2px);
+      transition: opacity .9s ease;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .u-widget .veil.lifted { opacity: 0; }
+    .u-widget .label {
+      position: absolute;
+      bottom: 2px; left: 6px;
+      font-size: 10px;
+      color: var(--c-ink-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    .formula-tracker {
+      font-size: 13px;
+      line-height: 1.4;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 18px;
+      max-height: none;
+      align-items: center;
+    }
+    .formula-tracker .f-line {
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity .4s ease, transform .4s ease;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .formula-tracker .f-line.visible { opacity: 1; transform: translateY(0); }
+
+    .stage-indicator {
+      font-family: var(--sans);
+      font-size: 12px;
+      color: var(--c-ink-muted);
+      text-align: right;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .stage-indicator .num { color: var(--c-truth); font-weight: 600; }
+
+    .scrolly {
+      display: grid;
+      grid-template-columns: minmax(340px, 45%) 1fr;
+      gap: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .narrative {
+      padding: 40px 12px 40px 0;
+    }
+    .stage {
+      min-height: 82vh;
+      padding: 60px 0;
+      border-bottom: 1px dashed transparent;
+    }
+    .stage h2 {
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin: 0 0 16px;
+      color: var(--c-ink);
+    }
+    .stage .kicker {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--c-truth);
+      margin-bottom: 8px;
+    }
+    .stage p { margin: 0 0 14px; }
+    .stage blockquote {
+      border-left: 3px solid var(--c-truth);
+      padding: 4px 0 4px 14px;
+      margin: 16px 0;
+      font-style: italic;
+      color: var(--c-ink);
+    }
+    .stage .controls {
+      margin-top: 18px;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .stage .controls label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--c-ink-muted);
+    }
+    .stage .controls label .val {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 12px;
+      color: var(--c-ink);
+      min-width: 48px;
+      text-align: right;
+    }
+    .stage .controls input[type=range] { flex: 1; }
+    .stage .controls button {
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 6px 12px;
+      border: 1px solid var(--c-truth);
+      color: var(--c-truth);
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+    .stage .controls button:hover { background: var(--c-truth); color: #fff; }
+
+    .viz-pane {
+      position: sticky;
+      top: 94px;
+      height: calc(100vh - 120px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .viz-pane svg {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+    }
+
+    .coda {
+      max-width: 760px;
+      margin: 40px auto 80px;
+      padding: 0 24px;
+    }
+    .coda .nav-next {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 10px 18px;
+      background: var(--c-truth);
+      color: #fff;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .coda .nav-next:hover { filter: brightness(1.1); }
+
+    @media (max-width: 860px) {
+      .scrolly { grid-template-columns: 1fr; }
+      .viz-pane {
+        position: sticky;
+        top: 90px;
+        height: 50vh;
+        order: -1;
+      }
+      .narrative { padding: 20px 0; }
+      .topbar { grid-template-columns: 1fr; gap: 8px; min-height: 0; padding: 8px 12px; }
+      .u-widget { width: 100%; height: 50px; }
+      .formula-tracker { grid-template-columns: 1fr; font-size: 12px; }
+      .stage-indicator { text-align: left; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: opacity .2s !important; }
+    }
+
+    .avatar text.name {
+      font-family: var(--serif);
+      font-size: 13px;
+      fill: var(--c-ink);
+    }
+
+    .katex { font-size: 1em; }
+
+    .stage-eq {
+      margin-top: 20px;
+      padding: 12px 14px;
+      background: rgba(123, 44, 191, 0.06);
+      border: 1px solid rgba(123, 44, 191, 0.25);
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stage-eq .stage-eq-label {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-truth);
+      font-weight: 600;
+    }
+    .stage-eq span:last-child {
+      font-size: 15px;
+      color: var(--c-ink);
+    }
+  </style>
+</head>
+<body>
+  <nav class="pg-nav">
+    <a href="index.html">← back to the playground</a>
+  </nav>
+
+  <div class="topbar" id="topbar">
+    <div class="u-widget" id="uWidget" aria-label="Hidden variable U">
+      <svg viewBox="0 0 200 60" preserveAspectRatio="none" style="width:100%;height:100%;">
+        <line x1="100" y1="6" x2="100" y2="54" stroke="#bfbdb3" stroke-width="1" />
+        <text x="6" y="14" font-size="9" fill="#5a5a5a">high U</text>
+        <text x="6" y="56" font-size="9" fill="#5a5a5a">low U</text>
+        <g id="uWidgetDots"></g>
+        <circle id="uAlice" cx="100" cy="16" r="4" fill="var(--c-alice)"/>
+        <circle id="uBob" cx="100" cy="44" r="4" fill="var(--c-bob)"/>
+      </svg>
+      <div class="veil" id="uVeil"></div>
+      <div class="label">U: self-discipline</div>
+    </div>
+
+    <div class="formula-tracker" id="formulaTracker" aria-live="polite">
+      <div class="f-line" data-line="U">\( U \sim \mathcal{N}(0,1) \)</div>
+      <div class="f-line" data-line="X1">\( X_1 = 2 + \gamma_1\,U + \eta_1 \)</div>
+      <div class="f-line" data-line="X2">\( X_2 = 10 + \gamma_2\,U + \eta_2 \)</div>
+      <div class="f-line" data-line="Y">\( Y = 50 + 8\log(X_1) + 3X_2 + 6U + \varepsilon \)</div>
+      <div class="f-line" data-line="X3">\( X_3 = 0.9\,Y + \eta_3 \)</div>
+    </div>
+
+    <div class="stage-indicator">
+      Stage <span class="num" id="stageNum">1</span> / 6
+      <div style="margin-top:4px;font-size:10px;color:var(--c-ink-muted);" id="stageTitle">Meet U</div>
+    </div>
+  </div>
+
+  <main class="scrolly">
+    <div class="narrative" id="narrative">
+
+      <section class="stage" data-stage="1">
+        <div class="kicker">Stage 1</div>
+        <h2>Meet Alice and Bob</h2>
+        <blockquote>
+          Meet Alice. Meet Bob. They sit in the same lecture hall. They take the same notes. This semester, both tell you, honestly, that they studied <strong>2 hours a day</strong> and attended <strong>10 out of 12 lectures</strong>. Then the exam happens. Alice scores <strong>72</strong>. Bob scores <strong>58</strong>.
+        </blockquote>
+        <p><em>Same hours. Same attendance. Fourteen-point gap.</em></p>
+        <p>You're going to spend the next ten minutes figuring out why, by building, piece by piece, the hidden machine that produces exam scores in this world.</p>
+        <p>First, something you won't see in any spreadsheet. Call it <strong>U</strong>: self-discipline, grit, focus, whatever you like. Alice has a lot of it. Bob has less. It's real, and it's about to start pulling strings.</p>
+        <p><strong>How was U measured?</strong> U is the score each student gave themselves on an Instagram story slider at the start of the semester: "How disciplined are you with your studies? Drag the slider from 0 (not at all) to 1 (very)." The university has not released this data, so the analyst cannot see it. We standardise these scores to mean 0 and standard deviation 1, giving U ~ N(0,1).</p>
+        <p><em>U is who they really are, and we will never see it directly.</em></p>
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>\( U \sim \mathcal{N}(0,1) \)</span></div>
+        <div class="controls">
+          <button id="btnDrawPeople">Draw new people</button>
+          <label>
+            Alice & Bob positions on U
+            <input type="range" id="sldU" min="0" max="1" step="0.01" value="0.5" />
+            <span class="val" id="valU">0.50</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="stage" data-stage="2">
+        <div class="kicker">Stage 2</div>
+        <h2>What U does to study hours</h2>
+        <p><strong>U has already moved them.</strong> Alice's discipline didn't just sit in her head. It pushed her to study more hours. Bob's lower U pushed him to study fewer. The <em>same</em> hidden trait leaked into what we thought was an independent input.</p>
+        <p>But U is not the only thing shaping X₁. There is a second term in the equation, <strong>η₁</strong>. η₁ is the random individual variation: a student's schedule that week, a midterm in another class, whether they caught a cold, whether their flatmate was loud on Tuesday. It's everything that shifts hours studied but isn't captured by U. We model it as mean-zero noise, independent of U.</p>
+        <p>That violet arrow is the cause (U's pull). The grey shimmer is η₁. Both land in the same number — hours studied — and from the outside, we can't tell them apart.</p>
+        <div class="controls">
+          <label>
+            \( \gamma_1 \): U's pull on X₁
+            <input type="range" id="sldGamma1" min="0" max="1.5" step="0.01" value="0.5" />
+            <span class="val" id="valGamma1">0.50</span>
+          </label>
+          <button id="btnResampleEta1">Resample η₁</button>
+        </div>
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>\( X_1 = 2 + 0.5\,U + \eta_1,\quad \eta_1 \sim \mathcal{N}(0, 0.5) \)</span></div>
+      </section>
+
+      <section class="stage" data-stage="3">
+        <div class="kicker">Stage 3</div>
+        <h2>Two windows onto U</h2>
+        <p>A detective never trusts a single witness. Neither should a model.</p>
+        <p>We add a second variable: <strong>X₂</strong>, lectures attended. Same story: U pushes it, and a second independent noise <strong>η₂</strong> jitters it. η₂ is what η₁ was, but for attendance: a bus that didn't come, a clashing appointment, a friend who convinced them to skip. Independent of U. Independent of η₁.</p>
+        <p>A hundred anonymous students rain in. The cloud tilts. Why? Because U is still pulling the strings, on both axes at once. Students with high U study more <em>and</em> attend more. Students with low U do neither. The tilt is U's fingerprint on the data.</p>
+        <div class="controls">
+          <label>
+            \( \gamma_2 \): U's pull on X₂
+            <input type="range" id="sldGamma2" min="0" max="3" step="0.01" value="1.5" />
+            <span class="val" id="valGamma2">1.50</span>
+          </label>
+          <button id="btnReplayFountain">Replay the fountain</button>
+        </div>
+        <p style="margin-top:10px;font-size:13.5px;color:var(--c-ink-muted);">
+          Self-discipline is a <em>strong</em> driver of attendance: a one-standard-deviation bump in U pushes a student to attend roughly 1.5 more lectures. \(\eta_2\) — the random jitter around that pull — has variance 2, so attendance still varies plenty even at a fixed level of discipline.
+        </p>
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>\( X_2 = 10 + 1.5\,U + \eta_2,\quad \eta_2 \sim \mathcal{N}(0, 2) \)</span></div>
+      </section>
+
+      <section class="stage" data-stage="4">
+        <div class="kicker">Stage 4</div>
+        <h2>The outcome (the full DGP arrives)</h2>
+        <p>Now the exam happens. And the machine that produces scores looks like this:</p>
+        <p style="text-align:center;" class="katex-big">\( Y = 50 + 8\log(X_1) + 3X_2 + 6U + \varepsilon \)</p>
+        <p>Every term earns its place. The <code>log</code> says the first hour of study is worth much more than the tenth: diminishing returns, baked right in. The <code>3·X₂</code> rewards showing up. The <code>6·U</code> is the direct fingerprint of discipline on the exam itself — and it is <em>big</em>. A one-standard-deviation bump in self-discipline contributes six points to the final score, entirely through channels the analyst never sees: focus during study sessions, the practice problem a disciplined student does anyway, the ability to read a question carefully under time pressure. Hours studied and lectures attended are only part of how U lifts a score; U has a direct line to Y as well.</p>
+        <p>And ε? <strong>ε is the irreducible exam-day noise:</strong> a lucky guess on a question, a moment of panic, a pen that ran out, a question that happened to favour one student's intuition. It's what neither U nor X₁ nor X₂ can predict. We'll see its shape in the next stage.</p>
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>\( Y = 50 + 8\log(X_1) + 3\,X_2 + 6\,U + \varepsilon \)</span></div>
+      </section>
+
+      <section class="stage" data-stage="5">
+        <div class="kicker">Stage 5</div>
+        <h2>The shape of the noise</h2>
+        <p>We wrote \( \varepsilon \) as if it were one uniform cloud. It isn't.</p>
+        <p>Plot each student's exam-day noise — ε, the leftover after we subtract \(50 + 8\log(X_1) + 3X_2 + 6U\) from their score — against the hours they studied. Instead of a flat band you see a <strong>funnel</strong>. Students who studied barely at all cluster tightly around zero. Students who studied a lot fan out wildly, above and below.</p>
+        <p>This is <strong>heteroscedasticity</strong>. The noise variance is not a constant; it scales with \( |X_1| \):</p>
+        <p style="text-align:center;" class="katex-big">\( \varepsilon \sim \mathcal{N}\!\left(0,\; 2\,|X_1|\right) \)</p>
+        <p>Why this shape? A student who studied 30 minutes can only do so well, and can only do so badly — their score is pinned. A student who studied six hours has more room to move: momentum, fatigue, lucky topic overlap, unlucky question ordering. Their outcomes fan out. The gold curves show ±SD(ε) — the characteristic funnel.</p>
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>\( \varepsilon \sim \mathcal{N}\!\left(0,\; 2\,|X_1|\right) \)</span></div>
+      </section>
+
+      <section class="stage" data-stage="6">
+        <div class="kicker">Stage 6</div>
+        <h2>One last variable: self-assessment</h2>
+        <p>After the exam, imagine we ask every student: <em>"How do you think you did?"</em> Call their answer <strong>X₃</strong>: self-assessed performance. It tracks the score closely, because students who did well feel like they did well.</p>
+        <p>Formally, X₃ is a noisy copy of Y:</p>
+        <p style="text-align:center;" class="katex-big">\( X_3 = 0.9\,Y + \eta_3 \)</p>
+        <p>Notice the direction of the arrow. Y causes X₃. X₃ does not cause Y. That makes X₃ a <strong>post-treatment</strong> variable: measured after the outcome, shaped by it.</p>
+        <p>The scatter on the right plots X₃ against Y. The slope is roughly 0.9, and the points hug that line tightly. This is exactly what a noisy copy of Y looks like, and that tightness is what will tempt a naive analyst into disaster on the next page.</p>
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>\( X_3 = 0.9\,Y + \eta_3 \)</span></div>
+      </section>
+    </div>
+
+    <div class="viz-pane" id="vizPane">
+      <svg id="mainSvg" viewBox="0 0 600 500" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </main>
+
+  <section class="coda">
+    <p style="font-family:var(--serif);font-style:italic;color:var(--c-ink-muted);font-size:15px;">
+      The world is built. U shapes the inputs, the inputs shape Y, and a noisy self-assessment rides along behind. Next: a new cohort arrives, and we ask — what's our best guess for their scores?
+    </p>
+    <a href="dgp-estimator.html" class="nav-next">Continue to the estimation →</a>
+  </section>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <script type="module">
+    import { seededRandom, randn } from './shared/dgp.js';
+
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: '\\(', right: '\\)', display: false },
+        { left: '$$', right: '$$', display: true }
+      ],
+      throwOnError: false
+    });
+
+    const state = {
+      activeStage: 1,
+      seed: 7,
+      n: 150,
+      gamma1: 0.5,
+      gamma2: 1.5,
+      aliceU: 0.55,
+      bobU: -0.55,
+      sample: null,
+      view: { azimuth: Math.PI / 6, elevation: Math.PI / 6 }
+    };
+    const DEFAULT_VIEW = { azimuth: Math.PI / 6, elevation: Math.PI / 6 };
+
+    // Noise parameters (tightened + louder):
+    //   Var(η₁) = 0.5  (SD ≈ 0.71)
+    //   Var(η₂) = 2    (SD ≈ 1.41)
+    //   Var(η₃) = 4    (SD = 2)
+    //   Var(ε)  = 2·|X₁|  (SD ≈ 2 at X₁=2)
+    function draw() {
+      const rng = seededRandom(state.seed);
+      const n = state.n;
+      const U = new Float64Array(n), X1 = new Float64Array(n),
+            X2 = new Float64Array(n), X3 = new Float64Array(n),
+            Y  = new Float64Array(n), EPS = new Float64Array(n);
+      const sdEta1 = Math.sqrt(0.5), sdEta2 = Math.sqrt(2.0), sdEta3 = 2.0;
+      for (let i = 0; i < n; i++) {
+        const u = randn(rng);
+        const eta1 = randn(rng) * sdEta1;
+        const eta2 = randn(rng) * sdEta2;
+        const eta3 = randn(rng) * sdEta3;
+        let x1 = 2 + state.gamma1 * u + eta1;
+        if (x1 <= 0.05) x1 = 0.05;
+        const x2 = 10 + state.gamma2 * u + eta2;
+        const epsSd = Math.sqrt(2.0 * Math.abs(x1));
+        const eps = randn(rng) * epsSd;
+        const y = 50 + 8 * Math.log(x1) + 3 * x2 + 6 * u + eps;
+        const x3 = 0.9 * y + eta3;
+        U[i]=u; X1[i]=x1; X2[i]=x2; X3[i]=x3; Y[i]=y; EPS[i]=eps;
+      }
+      state.sample = { U, X1, X2, X3, Y, EPS };
+    }
+    draw();
+
+    const svg = d3.select('#mainSvg');
+    const W = 600, H = 500;
+    const margin = { top: 30, right: 30, bottom: 50, left: 60 };
+    const iw = W - margin.left - margin.right;
+    const ih = H - margin.top - margin.bottom;
+    const root = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const gRidge = root.append('g').attr('class', 'g-ridge');
+    const gAxes = root.append('g').attr('class', 'g-axes');
+    const gCloud = root.append('g').attr('class', 'g-cloud');
+    const gTrueCurve = root.append('g').attr('class', 'g-true');
+    const gOverlay = root.append('g').attr('class', 'g-overlay');
+    const gAliceBob = root.append('g').attr('class', 'g-ab');
+
+    const defs = svg.append('defs');
+    function makeGlow(id, color, spread) {
+      const f = defs.append('filter').attr('id', id).attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
+      f.append('feGaussianBlur').attr('stdDeviation', spread).attr('result','blur');
+      const merge = f.append('feMerge');
+      merge.append('feMergeNode').attr('in','blur');
+      merge.append('feMergeNode').attr('in','SourceGraphic');
+    }
+    makeGlow('glow-alice', 'var(--c-alice)', 4);
+    makeGlow('glow-bob', 'var(--c-bob)', 2);
+
+    function renderAvatar(sel, who, size=24) {
+      const color = who === 'alice' ? 'var(--c-alice)' : 'var(--c-bob)';
+      const g = sel.append('g').attr('class', `avatar ${who}`);
+      g.append('circle').attr('class','halo').attr('r', size*0.9).attr('fill', color).attr('opacity', 0.18);
+      g.append('circle').attr('r', size/2).attr('fill', '#fff').attr('stroke', color).attr('stroke-width', 2);
+      g.append('circle').attr('cx', -size*0.18).attr('cy', -size*0.08).attr('r', size*0.055).attr('fill', '#2a2a2a');
+      g.append('circle').attr('cx', size*0.18).attr('cy', -size*0.08).attr('r', size*0.055).attr('fill', '#2a2a2a');
+      if (who === 'alice') {
+        g.append('path').attr('d', `M${-size*0.2},${size*0.1} Q0,${size*0.28} ${size*0.2},${size*0.1}`)
+          .attr('fill','none').attr('stroke','#2a2a2a').attr('stroke-width', 1.5).attr('stroke-linecap','round');
+      } else {
+        g.append('line').attr('x1', -size*0.18).attr('y1', size*0.16).attr('x2', size*0.18).attr('y2', size*0.16)
+          .attr('stroke','#2a2a2a').attr('stroke-width', 1.5).attr('stroke-linecap','round');
+      }
+      g.append('text').attr('class','name').attr('y', size*0.9 + 12).attr('text-anchor','middle')
+        .text(who === 'alice' ? 'Alice' : 'Bob');
+      return g;
+    }
+
+    let xScale = d3.scaleLinear().domain([0.2, 4]).range([0, iw]);
+    let yScale = d3.scaleLinear().domain([55, 110]).range([ih, 0]);
+
+    function axes(xLabel, yLabel) {
+      gAxes.selectAll('*').remove();
+      const xAxis = d3.axisBottom(xScale).ticks(5);
+      const yAxis = d3.axisLeft(yScale).ticks(5);
+      gAxes.append('g').attr('transform', `translate(0,${ih})`).call(xAxis)
+        .selectAll('text').style('font-size','11px').style('fill','#666');
+      gAxes.append('g').call(yAxis)
+        .selectAll('text').style('font-size','11px').style('fill','#666');
+      gAxes.selectAll('path.domain, line').style('stroke','#bfbdb3');
+      gAxes.append('text').attr('x', iw/2).attr('y', ih+38).attr('text-anchor','middle')
+        .style('font-size','12px').style('fill','#444').text(xLabel);
+      gAxes.append('text').attr('transform', `translate(-44,${ih/2})rotate(-90)`)
+        .attr('text-anchor','middle').style('font-size','12px').style('fill','#444').text(yLabel);
+    }
+
+    function clearAll() {
+      gRidge.selectAll('*').remove();
+      gAxes.selectAll('*').remove();
+      gCloud.selectAll('*').remove();
+      gTrueCurve.selectAll('*').remove();
+      gOverlay.selectAll('*').remove();
+      gAliceBob.selectAll('*').remove();
+    }
+
+    function ensureArrowMarker() {
+      if (defs.select('#arrowV').empty()) {
+        defs.append('marker').attr('id','arrowV').attr('viewBox','0 -5 10 10').attr('refX',8)
+          .attr('refY',0).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+          .append('path').attr('d','M0,-5L10,0L0,5').attr('fill','var(--c-truth)');
+      }
+    }
+
+    const uColorScale = d3.scaleLinear().domain([-2.5, 2.5]).range([0, 1]).clamp(true);
+    const colourForU = u => d3.interpolateRgb('#2E5EA8', '#D4A017')(uColorScale(u));
+
+    function drawUGradientLegend(x, y) {
+      const legend = gOverlay.append('g').attr('transform', `translate(${x}, ${y})`);
+      if (defs.select('#uGrad').empty()) {
+        const g = defs.append('linearGradient').attr('id', 'uGrad').attr('x1','0%').attr('x2','100%');
+        g.append('stop').attr('offset','0%').attr('stop-color','#2E5EA8');
+        g.append('stop').attr('offset','100%').attr('stop-color','#D4A017');
+      }
+      legend.append('rect').attr('width', 120).attr('height', 10).attr('fill', 'url(#uGrad)');
+      legend.append('text').attr('x', 0).attr('y', -4).attr('font-size', 10).attr('fill', '#666').text('colour = U value');
+      legend.append('text').attr('x', 0).attr('y', 24).attr('font-size', 10).attr('fill', '#666').text('low');
+      legend.append('text').attr('x', 120).attr('y', 24).attr('text-anchor', 'end').attr('font-size', 10).attr('fill', '#666').text('high');
+    }
+
+    // Stage 1: Meet U
+    function renderStage1() {
+      clearAll();
+      xScale = d3.scaleLinear().domain([-3, 3]).range([0, iw]);
+      yScale = d3.scaleLinear().domain([-3, 3]).range([ih, 0]);
+
+      const cx = iw / 2;
+      gAxes.append('line').attr('x1', cx).attr('y1', 10).attr('x2', cx).attr('y2', ih-10)
+        .attr('stroke', '#bfbdb3').attr('stroke-width', 1).attr('opacity', 0.4);
+      gAxes.append('text').attr('x', cx+8).attr('y', 20).style('font-size','12px').style('fill','#666').text('U: self-discipline');
+      gAxes.append('text').attr('x', cx+8).attr('y', 36).style('font-size','10px').style('fill','#999').text('(higher = more)');
+
+      const ridgePath = [];
+      for (let u=-3; u<=3; u+=0.05) {
+        const p = Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI);
+        ridgePath.push([cx + p*300, yScale(u)]);
+      }
+      const line = d3.line();
+      gRidge.append('path').attr('d', line(ridgePath))
+        .attr('fill', 'rgba(123,44,191,0.08)').attr('stroke','rgba(123,44,191,0.3)').attr('stroke-width',1);
+      const mirror = ridgePath.map(([x,y])=>[2*cx-x,y]);
+      gRidge.append('path').attr('d', line(mirror))
+        .attr('fill', 'rgba(123,44,191,0.08)').attr('stroke','rgba(123,44,191,0.3)').attr('stroke-width',1);
+
+      const rng = seededRandom(state.seed + 100);
+      for (let i=0;i<8;i++) {
+        const u = randn(rng);
+        gCloud.append('circle')
+          .attr('cx', cx + (Math.random()-0.5)*24)
+          .attr('cy', yScale(u))
+          .attr('r', 4)
+          .attr('fill','#9aa0a6').attr('opacity',0)
+          .transition().delay(i*80).duration(400).attr('opacity',0.6);
+      }
+
+      const aliceG = renderAvatar(gAliceBob, 'alice', 28).attr('transform', `translate(${cx-40},${yScale(state.aliceU)})`);
+      renderAvatar(gAliceBob, 'bob', 28).attr('transform', `translate(${cx+40},${yScale(state.bobU)})`);
+      aliceG.select('.halo').attr('filter', 'url(#glow-alice)');
+    }
+
+    // Stage 2: X1 number line
+    function renderStage2() {
+      clearAll();
+      xScale = d3.scaleLinear().domain([0, 4.5]).range([0, iw]);
+      const centreY = ih / 2;
+      const baseline = 2;
+      ensureArrowMarker();
+
+      const axisG = gOverlay.append('g').attr('class', 'x1-axis');
+      axisG.append('line')
+        .attr('x1', xScale(0)).attr('x2', xScale(4.5))
+        .attr('y1', centreY).attr('y2', centreY)
+        .attr('stroke', '#444').attr('stroke-width', 1);
+      d3.range(0, 5, 1).forEach(t => {
+        axisG.append('line')
+          .attr('x1', xScale(t)).attr('x2', xScale(t))
+          .attr('y1', centreY - 5).attr('y2', centreY + 5)
+          .attr('stroke', '#444');
+        axisG.append('text')
+          .attr('x', xScale(t)).attr('y', centreY + 20)
+          .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#444')
+          .text(t);
+      });
+      axisG.append('text')
+        .attr('x', xScale(4.5)).attr('y', centreY + 40)
+        .attr('text-anchor', 'end').attr('font-size', 12).attr('fill', '#222')
+        .attr('font-style', 'italic')
+        .text('X₁: hours studied');
+
+      axisG.append('line')
+        .attr('x1', xScale(baseline)).attr('x2', xScale(baseline))
+        .attr('y1', centreY - 60).attr('y2', centreY + 10)
+        .attr('stroke', '#888').attr('stroke-dasharray', '3 3').attr('stroke-width', 1);
+      axisG.append('text')
+        .attr('x', xScale(baseline)).attr('y', centreY - 68)
+        .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#888')
+        .text('baseline (U = 0)');
+
+      const rng = seededRandom(state.seed + 200);
+      for (let i = 0; i < 50; i++) {
+        const u = randn(rng);
+        const x1 = 2 + state.gamma1 * u + randn(rng) * Math.sqrt(0.5);
+        const jitter = (Math.random() - 0.5) * 10;
+        gCloud.append('circle')
+          .attr('cx', xScale(Math.max(0.05, x1)))
+          .attr('cy', centreY + jitter)
+          .attr('r', 4).attr('fill', colourForU(u)).attr('opacity', 0.75)
+          .attr('stroke', '#fff').attr('stroke-width', 0.5);
+      }
+
+      drawUGradientLegend(iw - 150, 20);
+
+      const aliceX1 = 2 + state.gamma1 * state.aliceU;
+      const bobX1  = 2 + state.gamma1 * state.bobU;
+      const arrowOffsetAlice = -35;
+      const arrowOffsetBob = 35;
+
+      gOverlay.append('line')
+        .attr('x1', xScale(baseline)).attr('y1', centreY + arrowOffsetAlice)
+        .attr('x2', xScale(aliceX1)).attr('y2', centreY + arrowOffsetAlice)
+        .attr('stroke', 'var(--c-truth)').attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrowV)').attr('opacity', 0.85);
+      gOverlay.append('text')
+        .attr('x', (xScale(baseline) + xScale(aliceX1)) / 2).attr('y', centreY + arrowOffsetAlice - 5)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-truth)')
+        .text(`+ 0.5 × ${state.aliceU.toFixed(2)} = ${(state.gamma1 * state.aliceU).toFixed(2)}`);
+
+      gOverlay.append('line')
+        .attr('x1', xScale(baseline)).attr('y1', centreY + arrowOffsetBob)
+        .attr('x2', xScale(bobX1)).attr('y2', centreY + arrowOffsetBob)
+        .attr('stroke', 'var(--c-truth)').attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrowV)').attr('opacity', 0.85);
+      gOverlay.append('text')
+        .attr('x', (xScale(baseline) + xScale(bobX1)) / 2).attr('y', centreY + arrowOffsetBob + 15)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-truth)')
+        .text(`+ 0.5 × (${state.bobU.toFixed(2)}) = ${(state.gamma1 * state.bobU).toFixed(2)}`);
+
+      renderAvatar(gAliceBob, 'alice', 24).attr('transform', `translate(${xScale(aliceX1)},${centreY + arrowOffsetAlice})`);
+      renderAvatar(gAliceBob, 'bob', 24).attr('transform', `translate(${xScale(bobX1)},${centreY + arrowOffsetBob})`);
+    }
+
+    // Stage 3: X2 number line
+    function renderStage3() {
+      clearAll();
+      xScale = d3.scaleLinear().domain([6, 14]).range([0, iw]);
+      const centreY = ih / 2;
+      const baseline = 10;
+      ensureArrowMarker();
+
+      const axisG = gOverlay.append('g').attr('class', 'x2-axis');
+      axisG.append('line')
+        .attr('x1', xScale(6)).attr('x2', xScale(14))
+        .attr('y1', centreY).attr('y2', centreY)
+        .attr('stroke', '#444').attr('stroke-width', 1);
+      [6, 8, 10, 12, 14].forEach(t => {
+        axisG.append('line')
+          .attr('x1', xScale(t)).attr('x2', xScale(t))
+          .attr('y1', centreY - 5).attr('y2', centreY + 5)
+          .attr('stroke', '#444');
+        axisG.append('text')
+          .attr('x', xScale(t)).attr('y', centreY + 20)
+          .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#444')
+          .text(t);
+      });
+      axisG.append('text')
+        .attr('x', xScale(14)).attr('y', centreY + 40)
+        .attr('text-anchor', 'end').attr('font-size', 12).attr('fill', '#222')
+        .attr('font-style', 'italic')
+        .text('X₂: lectures attended');
+
+      axisG.append('line')
+        .attr('x1', xScale(baseline)).attr('x2', xScale(baseline))
+        .attr('y1', centreY - 60).attr('y2', centreY + 10)
+        .attr('stroke', '#888').attr('stroke-dasharray', '3 3').attr('stroke-width', 1);
+      axisG.append('text')
+        .attr('x', xScale(baseline)).attr('y', centreY - 68)
+        .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#888')
+        .text('baseline (U = 0)');
+
+      const rng = seededRandom(state.seed + 300);
+      for (let i = 0; i < 50; i++) {
+        const u = randn(rng);
+        const x2 = 10 + state.gamma2 * u + randn(rng) * Math.sqrt(2.0);
+        const jitter = (Math.random() - 0.5) * 10;
+        gCloud.append('circle')
+          .attr('cx', xScale(Math.max(6, Math.min(14, x2))))
+          .attr('cy', centreY + jitter)
+          .attr('r', 4).attr('fill', colourForU(u)).attr('opacity', 0.75)
+          .attr('stroke', '#fff').attr('stroke-width', 0.5);
+      }
+
+      drawUGradientLegend(iw - 150, 20);
+
+      const aliceX2 = 10 + state.gamma2 * state.aliceU;
+      const bobX2   = 10 + state.gamma2 * state.bobU;
+      const arrowOffsetAlice = -35;
+      const arrowOffsetBob = 35;
+
+      gOverlay.append('line')
+        .attr('x1', xScale(baseline)).attr('y1', centreY + arrowOffsetAlice)
+        .attr('x2', xScale(aliceX2)).attr('y2', centreY + arrowOffsetAlice)
+        .attr('stroke', 'var(--c-truth)').attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrowV)').attr('opacity', 0.85);
+      gOverlay.append('text')
+        .attr('x', (xScale(baseline) + xScale(aliceX2)) / 2).attr('y', centreY + arrowOffsetAlice - 5)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-truth)')
+        .text(`+ ${state.gamma2.toFixed(2)} × ${state.aliceU.toFixed(2)} = ${(state.gamma2 * state.aliceU).toFixed(2)}`);
+
+      gOverlay.append('line')
+        .attr('x1', xScale(baseline)).attr('y1', centreY + arrowOffsetBob)
+        .attr('x2', xScale(bobX2)).attr('y2', centreY + arrowOffsetBob)
+        .attr('stroke', 'var(--c-truth)').attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrowV)').attr('opacity', 0.85);
+      gOverlay.append('text')
+        .attr('x', (xScale(baseline) + xScale(bobX2)) / 2).attr('y', centreY + arrowOffsetBob + 15)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-truth)')
+        .text(`+ ${state.gamma2.toFixed(2)} × (${state.bobU.toFixed(2)}) = ${(state.gamma2 * state.bobU).toFixed(2)}`);
+
+      renderAvatar(gAliceBob, 'alice', 24).attr('transform', `translate(${xScale(aliceX2)},${centreY + arrowOffsetAlice})`);
+      renderAvatar(gAliceBob, 'bob', 24).attr('transform', `translate(${xScale(bobX2)},${centreY + arrowOffsetBob})`);
+    }
+
+    // Stage 4: 3D (X1, X2, Y) scatter — see Y materialise
+    const STAGE3D_DOMAIN = { x1: [0.2, 4.5], x2: [6, 14], y: [55, 110] };
+
+    function makeRotatable3D(x1Domain, x2Domain, yDomain, viewW, viewH) {
+      const nX1 = d => (d - x1Domain[0]) / (x1Domain[1] - x1Domain[0]);
+      const nX2 = d => (d - x2Domain[0]) / (x2Domain[1] - x2Domain[0]);
+      const nY  = d => (d - yDomain[0])  / (yDomain[1]  - yDomain[0]);
+      const pad = 40;
+      // Read rotation from shared state so drag handlers can update it live.
+      const project = function(x1, x2, y) {
+        const u1 = nX1(x1) - 0.5;
+        const u2 = nX2(x2) - 0.5;
+        const uy = nY(y)  - 0.5;
+        const ca = Math.cos(state.view.azimuth), sa = Math.sin(state.view.azimuth);
+        const x1r = u1 * ca - u2 * sa;
+        const zr  = u1 * sa + u2 * ca;
+        const ce = Math.cos(state.view.elevation), se = Math.sin(state.view.elevation);
+        const yr = uy * ce - zr * se;
+        const scale = Math.min(viewW - 2 * pad, viewH - 2 * pad);
+        return [viewW / 2 + x1r * scale, viewH / 2 - yr * scale];
+      };
+      return project;
+    }
+
+    function is3DStage(n) { return n === 4; }
+
+    let currentProject = null;
+
+    function drawIsoAxes(project, x1Domain, x2Domain, yDomain, labels) {
+      const {x1: x1Label, x2: x2Label, y: yLabel} = labels;
+      const origin = project(x1Domain[0], x2Domain[0], yDomain[0]);
+      const tipX1 = project(x1Domain[1], x2Domain[0], yDomain[0]);
+      const tipX2 = project(x1Domain[0], x2Domain[1], yDomain[0]);
+      const tipY  = project(x1Domain[0], x2Domain[0], yDomain[1]);
+
+      const nGrid = 4;
+      for (let i = 0; i <= nGrid; i++) {
+        const t = i / nGrid;
+        const x1Val = x1Domain[0] + t * (x1Domain[1] - x1Domain[0]);
+        const x2Val = x2Domain[0] + t * (x2Domain[1] - x2Domain[0]);
+        const a = project(x1Val, x2Domain[0], yDomain[0]);
+        const b = project(x1Val, x2Domain[1], yDomain[0]);
+        gOverlay.append('line').attr('x1',a[0]).attr('y1',a[1]).attr('x2',b[0]).attr('y2',b[1])
+          .attr('stroke','#d6d6d6').attr('stroke-width', 0.7);
+        const c = project(x1Domain[0], x2Val, yDomain[0]);
+        const d = project(x1Domain[1], x2Val, yDomain[0]);
+        gOverlay.append('line').attr('x1',c[0]).attr('y1',c[1]).attr('x2',d[0]).attr('y2',d[1])
+          .attr('stroke','#d6d6d6').attr('stroke-width', 0.7);
+      }
+      const wallX1Top = project(x1Domain[1], x2Domain[0], yDomain[1]);
+      const wallX2Top = project(x1Domain[0], x2Domain[1], yDomain[1]);
+      gOverlay.append('line').attr('x1',tipX1[0]).attr('y1',tipX1[1]).attr('x2',wallX1Top[0]).attr('y2',wallX1Top[1])
+        .attr('stroke','#e6e6e6').attr('stroke-width', 0.7);
+      gOverlay.append('line').attr('x1',tipX2[0]).attr('y1',tipX2[1]).attr('x2',wallX2Top[0]).attr('y2',wallX2Top[1])
+        .attr('stroke','#e6e6e6').attr('stroke-width', 0.7);
+      gOverlay.append('line').attr('x1',tipY[0]).attr('y1',tipY[1]).attr('x2',wallX1Top[0]).attr('y2',wallX1Top[1])
+        .attr('stroke','#e6e6e6').attr('stroke-width', 0.7);
+      gOverlay.append('line').attr('x1',tipY[0]).attr('y1',tipY[1]).attr('x2',wallX2Top[0]).attr('y2',wallX2Top[1])
+        .attr('stroke','#e6e6e6').attr('stroke-width', 0.7);
+
+      gOverlay.append('line').attr('x1',origin[0]).attr('y1',origin[1]).attr('x2',tipX1[0]).attr('y2',tipX1[1])
+        .attr('stroke','#333').attr('stroke-width', 1.3);
+      gOverlay.append('line').attr('x1',origin[0]).attr('y1',origin[1]).attr('x2',tipX2[0]).attr('y2',tipX2[1])
+        .attr('stroke','#333').attr('stroke-width', 1.3);
+      gOverlay.append('line').attr('x1',origin[0]).attr('y1',origin[1]).attr('x2',tipY[0]).attr('y2',tipY[1])
+        .attr('stroke','#333').attr('stroke-width', 1.3);
+
+      gOverlay.append('text').attr('x',tipX1[0]+4).attr('y',tipX1[1]+14)
+        .attr('font-size',11).attr('fill','#222').attr('font-style','italic').text(x1Label);
+      gOverlay.append('text').attr('x',tipX2[0]-4).attr('y',tipX2[1]+14)
+        .attr('text-anchor','end').attr('font-size',11).attr('fill','#222').attr('font-style','italic').text(x2Label);
+      gOverlay.append('text').attr('x',tipY[0]).attr('y',tipY[1]-6)
+        .attr('text-anchor','middle').attr('font-size',11).attr('fill','#222').attr('font-style','italic').text(yLabel);
+    }
+
+    function renderStage4() {
+      clearAll();
+      const viewW = iw, viewH = ih;
+      const x1Domain = STAGE3D_DOMAIN.x1;
+      const x2Domain = STAGE3D_DOMAIN.x2;
+      const yDomain  = STAGE3D_DOMAIN.y;
+      const project = makeRotatable3D(x1Domain, x2Domain, yDomain, viewW, viewH);
+      currentProject = project;
+
+      drawIsoAxes(project, x1Domain, x2Domain, yDomain, {x1:'X₁: hours', x2:'X₂: lectures', y:'Y: exam score'});
+
+      const surfaceRes = 10;
+      const clipY = v => Math.max(yDomain[0], Math.min(yDomain[1], v));
+      const trueY = (x1, x2) => 50 + 8 * Math.log(Math.max(0.1, x1)) + 3 * x2;
+      for (let i = 0; i < surfaceRes; i++) {
+        for (let j = 0; j < surfaceRes; j++) {
+          const x1a = x1Domain[0] + (i / surfaceRes) * (x1Domain[1] - x1Domain[0]);
+          const x1b = x1Domain[0] + ((i + 1) / surfaceRes) * (x1Domain[1] - x1Domain[0]);
+          const x2a = x2Domain[0] + (j / surfaceRes) * (x2Domain[1] - x2Domain[0]);
+          const x2b = x2Domain[0] + ((j + 1) / surfaceRes) * (x2Domain[1] - x2Domain[0]);
+          const p1 = project(x1a, x2a, clipY(trueY(x1a, x2a)));
+          const p2 = project(x1b, x2a, clipY(trueY(x1b, x2a)));
+          const p3 = project(x1a, x2b, clipY(trueY(x1a, x2b)));
+          gTrueCurve.append('line').attr('x1',p1[0]).attr('y1',p1[1]).attr('x2',p2[0]).attr('y2',p2[1])
+            .attr('stroke','var(--c-truth)').attr('stroke-width', 0.8).attr('opacity', 0.35);
+          gTrueCurve.append('line').attr('x1',p1[0]).attr('y1',p1[1]).attr('x2',p3[0]).attr('y2',p3[1])
+            .attr('stroke','var(--c-truth)').attr('stroke-width', 0.8).attr('opacity', 0.35);
+        }
+      }
+
+      const d = state.sample;
+      const indices = d3.range(d.Y.length).sort((a, b) => {
+        const pa = project(d.X1[a], d.X2[a], d.Y[a]);
+        const pb = project(d.X1[b], d.X2[b], d.Y[b]);
+        return pa[1] - pb[1];
+      });
+      for (const i of indices) {
+        const [sx, sy] = project(d.X1[i], d.X2[i], clipY(d.Y[i]));
+        gCloud.append('circle')
+          .attr('cx', sx).attr('cy', sy)
+          .attr('r', 3.2).attr('fill', colourForU(d.U[i])).attr('opacity', 0.8)
+          .attr('stroke', '#fff').attr('stroke-width', 0.5);
+      }
+
+      const aliceX1 = 2 + state.gamma1 * state.aliceU;
+      const aliceX2 = 10 + state.gamma2 * state.aliceU;
+      const aliceY  = 50 + 8 * Math.log(aliceX1) + 3 * aliceX2 + 6 * state.aliceU;
+      const bobX1   = 2 + state.gamma1 * state.bobU;
+      const bobX2   = 10 + state.gamma2 * state.bobU;
+      const bobY    = 50 + 8 * Math.log(bobX1) + 3 * bobX2 + 6 * state.bobU;
+      const [aSx, aSy] = project(aliceX1, aliceX2, clipY(aliceY));
+      const [bSx, bSy] = project(bobX1,   bobX2,   clipY(bobY));
+      const [aFx, aFy] = project(aliceX1, aliceX2, yDomain[0]);
+      const [bFx, bFy] = project(bobX1,   bobX2,   yDomain[0]);
+      gOverlay.append('line').attr('x1',aFx).attr('y1',aFy).attr('x2',aSx).attr('y2',aSy)
+        .attr('stroke','var(--c-alice)').attr('stroke-dasharray','2 3').attr('stroke-width',1).attr('opacity',0.7);
+      gOverlay.append('line').attr('x1',bFx).attr('y1',bFy).attr('x2',bSx).attr('y2',bSy)
+        .attr('stroke','var(--c-bob)').attr('stroke-dasharray','2 3').attr('stroke-width',1).attr('opacity',0.7);
+      renderAvatar(gAliceBob, 'alice', 20).attr('transform', `translate(${aSx},${aSy})`);
+      renderAvatar(gAliceBob, 'bob',   20).attr('transform', `translate(${bSx},${bSy})`);
+
+      const legend = gOverlay.append('g').attr('transform', `translate(${viewW - 130}, 16)`);
+      if (defs.select('#uGrad3D').empty()) {
+        const grad = defs.append('linearGradient').attr('id','uGrad3D').attr('x1','0%').attr('x2','100%');
+        grad.append('stop').attr('offset','0%').attr('stop-color','#2E5EA8');
+        grad.append('stop').attr('offset','100%').attr('stop-color','#D4A017');
+      }
+      legend.append('rect').attr('width', 110).attr('height', 8).attr('fill', 'url(#uGrad3D)');
+      legend.append('text').attr('x',0).attr('y',-4).attr('font-size',10).attr('fill','#666').text('colour = U');
+      legend.append('text').attr('x',0).attr('y',22).attr('font-size',10).attr('fill','#666').text('low');
+      legend.append('text').attr('x',110).attr('y',22).attr('text-anchor','end').attr('font-size',10).attr('fill','#666').text('high');
+
+      gOverlay.append('text')
+        .attr('x', 10).attr('y', ih - 8)
+        .attr('font-size', 11).attr('fill', '#888').attr('font-style', 'italic')
+        .attr('pointer-events', 'none')
+        .text('Drag to rotate');
+    }
+
+    // Stage 5: heteroscedasticity 2D scatter — X₁ vs ε, with ±SD(ε) envelope
+    function renderStage5() {
+      clearAll();
+      const d = state.sample;
+      // ε range determined by data; use generous symmetric bounds.
+      const h = 2.0;
+      const x1Max = STAGE3D_DOMAIN.x1[1];
+      const sdMax = Math.sqrt(h * x1Max);
+      const epsBound = 3.2 * sdMax; // ~3 SD at max X1
+      xScale = d3.scaleLinear().domain([0, x1Max]).range([0, iw]);
+      yScale = d3.scaleLinear().domain([-epsBound, epsBound]).range([ih, 0]);
+      axes('X₁: hours studied', 'ε: exam-day noise');
+
+      // Zero line
+      gOverlay.append('line')
+        .attr('x1', 0).attr('x2', iw)
+        .attr('y1', yScale(0)).attr('y2', yScale(0))
+        .attr('stroke', '#bbb').attr('stroke-width', 1).attr('stroke-dasharray', '3 3');
+
+      // ±SD(ε) envelope: y = ±√(h·|X₁|)
+      const linePos = d3.line();
+      const nPts = 60;
+      const upper = [], lower = [];
+      for (let k = 0; k <= nPts; k++) {
+        const x1 = 0.05 + (x1Max - 0.05) * (k / nPts);
+        const sd = Math.sqrt(h * x1);
+        upper.push([xScale(x1), yScale(sd)]);
+        lower.push([xScale(x1), yScale(-sd)]);
+      }
+      gTrueCurve.append('path').attr('d', linePos(upper))
+        .attr('stroke', '#D4A017').attr('stroke-width', 1.6).attr('fill', 'none').attr('opacity', 0.85);
+      gTrueCurve.append('path').attr('d', linePos(lower))
+        .attr('stroke', '#D4A017').attr('stroke-width', 1.6).attr('fill', 'none').attr('opacity', 0.85);
+      // Shaded band
+      const band = upper.concat(lower.slice().reverse());
+      gTrueCurve.insert('path', ':first-child').attr('d', linePos(band) + ' Z')
+        .attr('fill', 'rgba(212,160,23,0.10)').attr('stroke', 'none');
+
+      gOverlay.append('text')
+        .attr('x', xScale(x1Max) - 6).attr('y', yScale(Math.sqrt(h * x1Max)) - 6)
+        .attr('text-anchor', 'end').attr('font-size', 11).attr('fill', '#a27608')
+        .attr('font-style', 'italic').text('+ SD(ε) = +√(2·|X₁|)');
+      gOverlay.append('text')
+        .attr('x', xScale(x1Max) - 6).attr('y', yScale(-Math.sqrt(h * x1Max)) + 14)
+        .attr('text-anchor', 'end').attr('font-size', 11).attr('fill', '#a27608')
+        .attr('font-style', 'italic').text('− SD(ε)');
+
+      // Scatter: (X1, ε) per student, coloured by U
+      for (let i = 0; i < d.X1.length; i++) {
+        gCloud.append('circle')
+          .attr('cx', xScale(d.X1[i])).attr('cy', yScale(d.EPS[i]))
+          .attr('r', 3.0).attr('fill', colourForU(d.U[i])).attr('opacity', 0.75)
+          .attr('stroke', '#fff').attr('stroke-width', 0.4);
+      }
+
+      // Alice and Bob: compute their ε at canonical positions.
+      // Use U-driven X1 and a deterministic ε sample roughly in-band.
+      const aliceX1 = 2 + state.gamma1 * state.aliceU;
+      const bobX1   = 2 + state.gamma1 * state.bobU;
+      // Give them representative epsilons: Alice a bit positive, Bob a bit negative.
+      const aliceEps = 0.7 * Math.sqrt(h * aliceX1);
+      const bobEps   = -0.6 * Math.sqrt(h * bobX1);
+      renderAvatar(gAliceBob, 'alice', 22).attr('transform', `translate(${xScale(aliceX1)},${yScale(aliceEps)})`);
+      renderAvatar(gAliceBob, 'bob', 22).attr('transform', `translate(${xScale(bobX1)},${yScale(bobEps)})`);
+
+      drawUGradientLegend(iw - 150, -6);
+
+      gOverlay.append('text').attr('x', 12).attr('y', 20)
+        .attr('font-size', 12).attr('fill', 'var(--c-ink)').attr('font-style', 'italic')
+        .text('Noise funnel: tight at low X₁, wide at high X₁.');
+    }
+
+    // Stage 6: X3 vs Y scatter
+    function renderStage6() {
+      clearAll();
+      const yDomain = STAGE3D_DOMAIN.y;
+      const d = state.sample;
+      const x3Min = 0.9 * yDomain[0] - 8;
+      const x3Max = 0.9 * yDomain[1] + 8;
+      xScale = d3.scaleLinear().domain([yDomain[0], yDomain[1]]).range([0, iw]);
+      yScale = d3.scaleLinear().domain([x3Min, x3Max]).range([ih, 0]);
+      axes('Y: exam score', 'X₃: self-assessed performance');
+
+      const lineGen = d3.line();
+      const refPts = [[xScale(yDomain[0]), yScale(0.9*yDomain[0])], [xScale(yDomain[1]), yScale(0.9*yDomain[1])]];
+      gTrueCurve.append('path').attr('d', lineGen(refPts))
+        .attr('stroke', 'var(--c-truth)').attr('stroke-width', 1.4).attr('opacity', 0.7)
+        .attr('fill', 'none').attr('stroke-dasharray', '4 3');
+      gOverlay.append('text').attr('x', xScale(yDomain[1]) - 6).attr('y', yScale(0.9*yDomain[1]) - 8)
+        .attr('text-anchor', 'end').attr('font-size', 11).attr('fill', 'var(--c-truth)')
+        .attr('font-style', 'italic').text('X₃ = 0.9 · Y');
+
+      for (let i = 0; i < d.Y.length; i++) {
+        gCloud.append('circle')
+          .attr('cx', xScale(d.Y[i])).attr('cy', yScale(d.X3[i]))
+          .attr('r', 3.0).attr('fill', colourForU(d.U[i]))
+          .attr('opacity', 0.75).attr('stroke', '#fff').attr('stroke-width', 0.4);
+      }
+
+      // Alice & Bob canonical
+      const alice = { X1: 2.275, X2: 10.825, U: 0.55 };
+      const bob   = { X1: 1.725, X2:  9.175, U: -0.55 };
+      const aliceY = 50 + 8 * Math.log(alice.X1) + 3 * alice.X2 + 6 * alice.U;
+      const bobY   = 50 + 8 * Math.log(bob.X1) + 3 * bob.X2 + 6 * bob.U;
+      const aliceX3 = 0.9 * aliceY;
+      const bobX3   = 0.9 * bobY;
+      renderAvatar(gAliceBob, 'alice', 22).attr('transform', `translate(${xScale(aliceY)},${yScale(aliceX3)})`);
+      renderAvatar(gAliceBob, 'bob', 22).attr('transform', `translate(${xScale(bobY)},${yScale(bobX3)})`);
+
+      gOverlay.append('text').attr('x', 12).attr('y', 20)
+        .attr('font-size', 12).attr('fill', 'var(--c-ink)').attr('font-style', 'italic')
+        .text('X₃ is a noisy copy of Y — it rides just below the 0.9·Y line.');
+
+      drawUGradientLegend(iw - 150, -6);
+    }
+
+    const stageTitles = {
+      1: 'Meet U', 2: 'U → X₁ (+ η₁)', 3: 'U → X₂ (+ η₂)',
+      4: 'Full DGP (+ ε)', 5: 'Shape of ε', 6: 'X₃: noisy copy of Y'
+    };
+
+    function renderStage(n) {
+      state.activeStage = n;
+      document.getElementById('stageNum').textContent = n;
+      document.getElementById('stageTitle').textContent = stageTitles[n] || '';
+      updateFormulaTracker(n);
+      if (n === 1) renderStage1();
+      else if (n === 2) renderStage2();
+      else if (n === 3) renderStage3();
+      else if (n === 4) renderStage4();
+      else if (n === 5) renderStage5();
+      else if (n === 6) renderStage6();
+    }
+
+    function updateFormulaTracker(n) {
+      const lines = {
+        1: ['U'],
+        2: ['U','X1'],
+        3: ['U','X1','X2'],
+        4: ['U','X1','X2','Y'],
+        5: ['U','X1','X2','Y'],
+        6: ['U','X1','X2','Y','X3']
+      };
+      const active = new Set(lines[n] || []);
+      document.querySelectorAll('#formulaTracker .f-line').forEach(el => {
+        el.classList.toggle('visible', active.has(el.dataset.line));
+      });
+    }
+
+    // ---------- intersection observer (fixed: pick HIGHEST ratio) ----------
+    const sections = document.querySelectorAll('.stage');
+    const ratios = new Map();
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const n = +entry.target.dataset.stage;
+        ratios.set(n, entry.intersectionRatio);
+      });
+      let best = null, bestRatio = 0;
+      for (const [n, r] of ratios) {
+        if (r > bestRatio) { best = n; bestRatio = r; }
+      }
+      if (best !== null && best !== state.activeStage && bestRatio > 0.35) {
+        renderStage(best);
+      }
+    }, { threshold: Array.from({length: 21}, (_, i) => i / 20) });
+    sections.forEach(s => io.observe(s));
+
+    // ---------- 3D drag-to-rotate ----------
+    function renderCurrentStage() {
+      renderStage(state.activeStage);
+    }
+    let dragState = null;
+    svg.on('mousedown', function(ev) {
+      if (!is3DStage(state.activeStage)) return;
+      dragState = { x: ev.clientX, y: ev.clientY, az: state.view.azimuth, el: state.view.elevation };
+      svg.style('cursor', 'grabbing');
+      ev.preventDefault();
+    });
+    svg.on('mousemove', function() {
+      if (!is3DStage(state.activeStage)) return;
+      if (!dragState) svg.style('cursor', 'grab');
+    });
+    svg.on('mouseleave', function() { if (!dragState) svg.style('cursor', null); });
+    window.addEventListener('mousemove', ev => {
+      if (!dragState) return;
+      const dx = ev.clientX - dragState.x;
+      const dy = ev.clientY - dragState.y;
+      state.view.azimuth = dragState.az + dx * 0.008;
+      state.view.elevation = Math.max(-Math.PI/2 + 0.05,
+        Math.min(Math.PI/2 - 0.05, dragState.el + dy * 0.008));
+      renderCurrentStage();
+    });
+    window.addEventListener('mouseup', () => {
+      if (dragState) { dragState = null; svg.style('cursor', null); }
+    });
+    // Touch
+    svg.on('touchstart', function(ev) {
+      if (!is3DStage(state.activeStage)) return;
+      const t = ev.touches[0];
+      dragState = { x: t.clientX, y: t.clientY, az: state.view.azimuth, el: state.view.elevation };
+      ev.preventDefault();
+    });
+    window.addEventListener('touchmove', ev => {
+      if (!dragState) return;
+      const t = ev.touches[0];
+      const dx = t.clientX - dragState.x, dy = t.clientY - dragState.y;
+      state.view.azimuth = dragState.az + dx * 0.008;
+      state.view.elevation = Math.max(-Math.PI/2 + 0.05,
+        Math.min(Math.PI/2 - 0.05, dragState.el + dy * 0.008));
+      renderCurrentStage();
+      ev.preventDefault();
+    });
+    window.addEventListener('touchend', () => { dragState = null; });
+
+    // ---------- control wiring ----------
+    document.getElementById('sldU').addEventListener('input', e => {
+      const t = +e.target.value;
+      // Map slider t in [0,1] to |U| in [0.15, 1.2]. Default t=0.5 -> |U|≈0.55,
+      // which keeps Alice/Bob's 14-point gap consistent with the stage-1 claim
+      // at the amplified parameters (gamma_2=1.5, beta_U=6).
+      state.aliceU = 0.15 + t*1.05;
+      state.bobU = -(0.15 + t*1.05);
+      document.getElementById('valU').textContent = t.toFixed(2);
+      if (state.activeStage === 1) renderStage1();
+    });
+
+    document.getElementById('btnDrawPeople').addEventListener('click', () => {
+      state.seed = (state.seed + 1) | 0;
+      draw();
+      if (state.activeStage === 1) renderStage1();
+    });
+
+    document.getElementById('sldGamma1').addEventListener('input', e => {
+      state.gamma1 = +e.target.value;
+      document.getElementById('valGamma1').textContent = state.gamma1.toFixed(2);
+      draw();
+      renderStage(state.activeStage);
+    });
+    document.getElementById('btnResampleEta1').addEventListener('click', () => {
+      state.seed = (state.seed + 1) | 0;
+      draw();
+      renderStage(state.activeStage);
+    });
+
+    document.getElementById('sldGamma2').addEventListener('input', e => {
+      state.gamma2 = +e.target.value;
+      document.getElementById('valGamma2').textContent = state.gamma2.toFixed(2);
+      draw();
+      renderStage(state.activeStage);
+    });
+    document.getElementById('btnReplayFountain').addEventListener('click', () => {
+      state.seed = (state.seed + 1) | 0;
+      draw();
+      renderStage(state.activeStage);
+    });
+
+    // keyboard nav
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        const next = Math.min(6, state.activeStage + 1);
+        const target = document.querySelector(`[data-stage="${next}"]`);
+        target && target.scrollIntoView({ behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        const prev = Math.max(1, state.activeStage - 1);
+        const target = document.querySelector(`[data-stage="${prev}"]`);
+        target && target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
+    renderStage(1);
+  </script>
+</body>
+</html>

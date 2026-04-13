@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The estimator: SML playground</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <link rel="stylesheet" href="shared/style.css" />
+  <style>
+    :root {
+      --c-bg: #fbf8f3;
+      --c-ink: #2a2a2a;
+      --c-ink-muted: #5a5a5a;
+      --c-alice: #d4722c;
+      --c-bob:  #3c8dbc;
+      --c-charlie: #6a4caf;
+      --c-david: #2c8c7a;
+      --c-evelyn: #b25fa8;
+      --c-gauss: #1b5e8e;
+      --c-noise: #9aa0a6;
+      --c-truth: #7b2cbf;
+      --c-est:  #2d8659;
+      --c-warn: #b5654a;
+      --c-border: #e4dfd5;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+    }
+
+    html, body {
+      margin: 0;
+      background: var(--c-bg);
+      color: var(--c-ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    a { color: var(--c-truth); }
+
+    .pg-nav {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--c-border);
+      font-size: 13px;
+      color: var(--c-ink-muted);
+    }
+    .pg-nav a { color: var(--c-ink-muted); text-decoration: none; }
+    .pg-nav a:hover { text-decoration: underline; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--c-bg);
+      border-bottom: 1px solid var(--c-border);
+      display: grid;
+      grid-template-columns: 220px 1fr 260px;
+      align-items: center;
+      padding: 10px 24px;
+      gap: 24px;
+      min-height: 74px;
+    }
+    .u-widget {
+      width: 200px;
+      height: 60px;
+      border: 1px solid var(--c-border);
+      border-radius: 4px;
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .u-widget .veil {
+      position: absolute; inset: 0;
+      background: rgba(150,150,155,0.72);
+      backdrop-filter: blur(2px);
+      transition: opacity .9s ease;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .u-widget .veil.lifted { opacity: 0; }
+    .u-widget .label {
+      position: absolute;
+      bottom: 2px; left: 6px;
+      font-size: 10px;
+      color: var(--c-ink-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    .formula-tracker {
+      font-size: 13px;
+      line-height: 1.4;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 18px;
+      max-height: none;
+      align-items: center;
+    }
+    .formula-tracker .f-line {
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity .4s ease, transform .4s ease;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .formula-tracker .f-line.visible { opacity: 1; transform: translateY(0); }
+
+    .stage-indicator {
+      font-family: var(--sans);
+      font-size: 12px;
+      color: var(--c-ink-muted);
+      text-align: right;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .stage-indicator .num { color: var(--c-truth); font-weight: 600; }
+
+    .scrolly {
+      display: grid;
+      grid-template-columns: minmax(340px, 45%) 1fr;
+      gap: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .narrative { padding: 40px 12px 40px 0; }
+    .stage {
+      min-height: 82vh;
+      padding: 60px 0;
+      border-bottom: 1px dashed transparent;
+    }
+    .stage h2 {
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin: 0 0 16px;
+      color: var(--c-ink);
+    }
+    .stage .kicker {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--c-truth);
+      margin-bottom: 8px;
+    }
+    .stage p { margin: 0 0 14px; }
+    .stage blockquote {
+      border-left: 3px solid var(--c-truth);
+      padding: 4px 0 4px 14px;
+      margin: 16px 0;
+      font-style: italic;
+      color: var(--c-ink);
+    }
+    .stage .controls {
+      margin-top: 18px;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .stage .controls label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--c-ink-muted);
+    }
+    .stage .controls input[type=range] { flex: 1; }
+    .stage .controls button {
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 6px 12px;
+      border: 1px solid var(--c-truth);
+      color: var(--c-truth);
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+    .stage .controls button:hover { background: var(--c-truth); color: #fff; }
+    .stage .controls button.climax {
+      border-color: var(--c-alice);
+      color: #fff;
+      background: linear-gradient(90deg, var(--c-alice), var(--c-bob));
+      font-weight: 600;
+      padding: 10px 16px;
+      font-size: 14px;
+    }
+    .stage .controls button.climax:hover { filter: brightness(1.08); }
+
+    .viz-pane {
+      position: sticky;
+      top: 94px;
+      height: calc(100vh - 120px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .viz-pane svg {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+    }
+
+    .coda {
+      max-width: 760px;
+      margin: 40px auto 80px;
+      padding: 0 24px;
+    }
+    .coda .nav-next {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 10px 18px;
+      background: var(--c-truth);
+      color: #fff;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .coda .nav-next:hover { filter: brightness(1.1); }
+
+    @media (max-width: 860px) {
+      .scrolly { grid-template-columns: 1fr; }
+      .viz-pane {
+        position: sticky;
+        top: 90px;
+        height: 50vh;
+        order: -1;
+      }
+      .narrative { padding: 20px 0; }
+      .topbar { grid-template-columns: 1fr; gap: 8px; min-height: 0; padding: 8px 12px; }
+      .u-widget { width: 100%; height: 50px; }
+      .formula-tracker { grid-template-columns: 1fr; font-size: 12px; }
+      .stage-indicator { text-align: left; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: opacity .2s !important; }
+    }
+
+    .katex { font-size: 1em; }
+
+    .stage-eq {
+      margin-top: 20px;
+      padding: 12px 14px;
+      background: rgba(123, 44, 191, 0.06);
+      border: 1px solid rgba(123, 44, 191, 0.25);
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stage-eq .stage-eq-label {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-truth);
+      font-weight: 600;
+    }
+    .stage-eq span:last-child { font-size: 15px; color: var(--c-ink); }
+
+    .train-table {
+      margin-top: 14px;
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 13px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .train-table th, .train-table td {
+      padding: 6px 10px;
+      text-align: right;
+      border-bottom: 1px solid var(--c-border);
+    }
+    .train-table th {
+      background: rgba(123,44,191,0.06);
+      color: var(--c-truth);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .train-table tr.new-cohort td {
+      background: rgba(212, 114, 44, 0.08);
+      color: var(--c-warn);
+      font-style: italic;
+    }
+    .train-table tr.new-cohort td.q {
+      color: var(--c-warn);
+      font-weight: 600;
+    }
+
+    /* Dr. Gauss card */
+    .gauss-card {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-left: 3px solid var(--c-gauss);
+      border-radius: 4px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .gauss-card .gauss-avatar {
+      flex: 0 0 44px;
+      width: 44px; height: 44px;
+    }
+    .gauss-card .gauss-body {
+      flex: 1;
+      font-size: 14px;
+      color: var(--c-ink);
+    }
+    .gauss-card .gauss-body strong { color: var(--c-gauss); }
+
+    /* Sliders / knob row for stage 2 */
+    .fit-controls .slider-row {
+      display: grid;
+      grid-template-columns: 78px 1fr 64px;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .fit-controls .slider-row .label {
+      color: var(--c-ink-muted);
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+    .fit-controls .slider-row .val {
+      font-family: 'SF Mono', Menlo, monospace;
+      color: var(--c-ink);
+      text-align: right;
+    }
+    .fit-controls .ssr-box {
+      margin-top: 6px;
+      padding: 10px 12px;
+      background: rgba(192, 57, 43, 0.06);
+      border: 1px solid rgba(192, 57, 43, 0.2);
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+    .fit-controls .ssr-box .ssr-label {
+      font-size: 11px;
+      color: var(--c-ink-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .fit-controls .ssr-box .ssr-val {
+      font-size: 22px;
+      color: var(--c-warn);
+      font-weight: 600;
+      transition: color .3s ease, font-size .3s ease;
+    }
+    .fit-controls .ssr-box .ssr-val.good { color: var(--c-est); font-size: 18px; }
+    .fit-controls .ssr-box .ssr-val.best { color: var(--c-truth); font-size: 16px; }
+    .fit-controls .ssr-best {
+      font-size: 12px;
+      color: var(--c-ink-muted);
+      margin-top: 4px;
+    }
+    .fit-controls .ssr-best.revealed { color: var(--c-truth); font-weight: 600; }
+
+    /* Regression output table */
+    .regout {
+      margin-top: 14px;
+      background: #fafafa;
+      border: 1px solid var(--c-border);
+      border-radius: 4px;
+      padding: 12px 14px;
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--c-ink);
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .regout .hdr { color: var(--c-truth); font-weight: 600; }
+    .regout .sig { color: var(--c-warn); }
+    .regout .comment { color: var(--c-ink-muted); font-style: italic; }
+
+    /* Histogram mini-svg */
+    .hist-holder { margin-top: 10px; }
+    .hist-holder svg { width: 100%; height: 160px; background: #fff; border: 1px solid var(--c-border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <nav class="pg-nav">
+    <a href="dgp-intro.html">← back to the DGP specification</a>
+  </nav>
+
+  <div class="topbar" id="topbar">
+    <div class="u-widget" id="uWidget" aria-label="Hidden variable U">
+      <svg viewBox="0 0 200 60" preserveAspectRatio="none" style="width:100%;height:100%;">
+        <line x1="100" y1="6" x2="100" y2="54" stroke="#bfbdb3" stroke-width="1" />
+        <text x="6" y="14" font-size="9" fill="#5a5a5a">high U</text>
+        <text x="6" y="56" font-size="9" fill="#5a5a5a">low U</text>
+        <g id="uWidgetDots"></g>
+      </svg>
+      <div class="veil" id="uVeil"></div>
+      <div class="label">U: self-discipline (still hidden)</div>
+    </div>
+
+    <div class="formula-tracker" id="formulaTracker" aria-live="polite">
+      <div class="f-line visible" data-line="fit">\( \hat{Y} = \hat{a} + \hat{b}_1 X_1 + \hat{b}_2 X_2 \)</div>
+      <div class="f-line visible" data-line="loss">\( \mathcal{L}(a,b) = \sum_i (y_i - (a + b x_i))^2 \)</div>
+      <div class="f-line visible" data-line="ols">\( \hat{\beta} = (X^\top X)^{-1} X^\top y \)</div>
+      <div class="f-line" id="fLineSE" data-line="se">SE, CI, p-value</div>
+    </div>
+
+    <div class="stage-indicator">
+      Stage <span class="num" id="stageNum">1</span> / 6
+      <div style="margin-top:4px;font-size:10px;color:var(--c-ink-muted);" id="stageTitle">New cohort, new researcher</div>
+    </div>
+  </div>
+
+  <main class="scrolly">
+    <div class="narrative" id="narrative">
+
+      <!-- ===================== STAGE 1 ===================== -->
+      <section class="stage" data-stage="1">
+        <div class="kicker">Stage 1</div>
+        <h2>A new cohort, and a new researcher</h2>
+        <p>A fresh semester, three new students. We know their study hours and lectures attended, but not yet their exam scores:</p>
+        <ul style="margin:0 0 14px 18px;">
+          <li><strong style="color:var(--c-charlie)">Charlie</strong>: 2.5 hours studied, 11 lectures</li>
+          <li><strong style="color:var(--c-david)">David</strong>: 1.8 hours, 8 lectures</li>
+          <li><strong style="color:var(--c-evelyn)">Evelyn</strong>: 3.5 hours, 13 lectures</li>
+        </ul>
+        <p>What will they score on the exam?</p>
+
+        <div class="gauss-card">
+          <svg class="gauss-avatar" viewBox="0 0 44 44" aria-label="Dr. Gauss">
+            <circle cx="22" cy="22" r="20" fill="#fff" stroke="var(--c-gauss)" stroke-width="2"/>
+            <circle cx="22" cy="17" r="7" fill="var(--c-gauss)" opacity="0.15"/>
+            <circle cx="22" cy="17" r="6" fill="#fff" stroke="var(--c-gauss)" stroke-width="1.3"/>
+            <circle cx="19.5" cy="16.5" r="0.9" fill="#2a2a2a"/>
+            <circle cx="24.5" cy="16.5" r="0.9" fill="#2a2a2a"/>
+            <path d="M19.5 19.5 Q22 21 24.5 19.5" fill="none" stroke="#2a2a2a" stroke-width="1" stroke-linecap="round"/>
+            <path d="M10 33 Q22 27 34 33 L34 40 L10 40 Z" fill="var(--c-gauss)" opacity="0.85"/>
+            <rect x="16" y="29" width="12" height="3" fill="#fff" stroke="var(--c-gauss)" stroke-width="0.6"/>
+          </svg>
+          <div class="gauss-body">
+            <strong>Meet Dr. Gauss.</strong> He just arrived at the university. His assignment: a dataset of <strong>150 past students</strong> — hours studied, lectures attended, final scores — and a simple job, predict the new cohort's scores. He's curious, methodical, and a fan of starting simple.
+            <p style="margin:10px 0 0;">"Before I use every variable at once," he says, "let me just use X₂ — lectures attended. It's well-behaved; its noise is uniform, unlike the trickier ε on Y. Let's see how far one variable gets us."</p>
+          </div>
+        </div>
+
+        <table class="train-table">
+          <thead>
+            <tr><th>name</th><th>X₁ (hrs)</th><th>X₂ (lec.)</th><th>Y (score)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>past #1</td><td>1.2</td><td>8</td><td>76</td></tr>
+            <tr><td>past #2</td><td>2.0</td><td>10</td><td>87</td></tr>
+            <tr><td>past #3</td><td>2.7</td><td>11</td><td>94</td></tr>
+            <tr><td>past #4</td><td>3.5</td><td>12</td><td>101</td></tr>
+            <tr><td colspan="4" style="text-align:center;color:var(--c-ink-muted);font-style:italic;">… and 146 more past students …</td></tr>
+            <tr class="new-cohort"><td>Charlie</td><td>2.5</td><td>11</td><td class="q">?</td></tr>
+            <tr class="new-cohort"><td>David</td><td>1.8</td><td>8</td><td class="q">?</td></tr>
+            <tr class="new-cohort"><td>Evelyn</td><td>3.5</td><td>13</td><td class="q">?</td></tr>
+          </tbody>
+        </table>
+
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>Dr. Gauss; the new cohort; the plan: start with one variable, X₂.</span></div>
+      </section>
+
+      <!-- ===================== STAGE 2 ===================== -->
+      <section class="stage" data-stage="2">
+        <div class="kicker">Stage 2</div>
+        <h2>Fit the line by hand</h2>
+        <p>Here's the scatter of 150 past students — X₂ (lectures) on the x-axis, Y (exam score) on the y-axis. We want to draw a line through them:</p>
+        <p style="text-align:center;" class="katex-big">\( Y = a + b \cdot X_2 \)</p>
+        <p>Two knobs: intercept <code>a</code> and slope <code>b</code>. Turn them. The red line moves. Thin red sticks from each point to the line are the <strong>residuals</strong>: how far off the line is for each student.</p>
+        <p>Below the plot, a big red number tracks the <strong>sum of squared residuals</strong> — add up (residual)² for all 150 students. Your job: make that sum as small as you can.</p>
+
+        <div class="controls fit-controls">
+          <div class="slider-row">
+            <span class="label">intercept a</span>
+            <input type="range" id="sliderA" min="0" max="100" step="0.5" value="40" />
+            <span class="val" id="valA">40.0</span>
+          </div>
+          <div class="slider-row">
+            <span class="label">slope b</span>
+            <input type="range" id="sliderB" min="-5" max="12" step="0.05" value="5" />
+            <span class="val" id="valB">5.00</span>
+          </div>
+          <div class="ssr-box">
+            <span class="ssr-label">Sum of squared residuals</span>
+            <span class="ssr-val" id="ssrVal">—</span>
+          </div>
+          <div class="ssr-best" id="ssrBest">Challenge: what's the lowest you can get? Dr. Gauss will reveal the true minimum.</div>
+          <button id="btnRevealBest" class="climax">Show the best fit Dr. Gauss would find</button>
+        </div>
+
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>Residuals; sum of squared residuals; the idea of a "best" fit.</span></div>
+      </section>
+
+      <!-- ===================== STAGE 3 ===================== -->
+      <section class="stage" data-stage="3">
+        <div class="kicker">Stage 3</div>
+        <h2>What you were minimising has a name</h2>
+        <p>That sum you were trying to shrink has a name. It's called the <strong>loss function</strong>:</p>
+        <p style="text-align:center;" class="katex-big">\( \mathcal{L}(a, b) \;=\; \sum_{i=1}^{n} \bigl( y_i - (a + b\, x_i) \bigr)^2 \)</p>
+        <p>Turning knobs is one way to minimise it. It's also an awful way. Dr. Gauss doesn't do that.</p>
+
+        <div class="gauss-card">
+          <svg class="gauss-avatar" viewBox="0 0 44 44">
+            <circle cx="22" cy="22" r="20" fill="#fff" stroke="var(--c-gauss)" stroke-width="2"/>
+            <circle cx="22" cy="17" r="6" fill="#fff" stroke="var(--c-gauss)" stroke-width="1.3"/>
+            <circle cx="19.5" cy="16.5" r="0.9" fill="#2a2a2a"/>
+            <circle cx="24.5" cy="16.5" r="0.9" fill="#2a2a2a"/>
+            <path d="M19.5 19.5 Q22 21 24.5 19.5" fill="none" stroke="#2a2a2a" stroke-width="1" stroke-linecap="round"/>
+            <path d="M10 33 Q22 27 34 33 L34 40 L10 40 Z" fill="var(--c-gauss)" opacity="0.85"/>
+          </svg>
+          <div class="gauss-body">
+            "The loss is smooth and quadratic. I can take the derivative with respect to <em>a</em> and <em>b</em>, set both to zero, and solve. The answer is a <strong>closed formula</strong> — no turning knobs needed."
+          </div>
+        </div>
+
+        <p>The formula (details of the derivation are for the lecture — trust that it comes out of the two zero-derivative equations) is:</p>
+        <p style="text-align:center;" class="katex-big">\( \hat{\beta} \;=\; (X^\top X)^{-1} X^\top y \)</p>
+        <p>The vector \( \hat{\beta} = (\hat{a}, \hat{b}) \) contains the exact numbers that minimise the loss. On the right, you can see your best manual fit on the left half of the plot, and Dr. Gauss's closed-form OLS fit on the right half. Compare the SSRs.</p>
+
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>Loss function \( \mathcal{L}(a,b) \); OLS closed form \( \hat{\beta} = (X^\top X)^{-1} X^\top y \).</span></div>
+      </section>
+
+      <!-- ===================== STAGE 4 ===================== -->
+      <section class="stage" data-stage="4">
+        <div class="kicker">Stage 4</div>
+        <h2>Why stop at one variable?</h2>
+        <p>X₂ alone isn't the whole story. Hours studied (X₁) also matters. Dr. Gauss extends the loss to two predictors:</p>
+        <p style="text-align:center;" class="katex-big">\( \mathcal{L}(a, b_1, b_2) \;=\; \sum_{i=1}^{n} \bigl( y_i - (a + b_1 x_{1i} + b_2 x_{2i}) \bigr)^2 \)</p>
+        <p>Same idea — pick the coefficients that make the gap squared, summed, as small as possible. Only now the "line" is a <strong>plane</strong> floating in (X₁, X₂, Y) space.</p>
+        <p>The closed-form answer is the <em>same</em> formula, \( \hat{\beta} = (X^\top X)^{-1} X^\top y \); it just returns three numbers instead of two, because X now has three columns (intercept, X₁, X₂).</p>
+        <p>On the right: Dr. Gauss's fitted plane, and Charlie, David, Evelyn placed on it. Their predicted scores \( \hat Y \) are labelled — look up from each student's (X₁, X₂) to read off the height of the plane.</p>
+
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>Multiple regression: same loss, same formula, more columns in X.</span></div>
+      </section>
+
+      <!-- ===================== STAGE 5 ===================== -->
+      <section class="stage" data-stage="5">
+        <div class="kicker">Stage 5</div>
+        <h2>How sure is Dr. Gauss?</h2>
+        <p>Dr. Gauss reads off \( \hat b_2 \approx 4.7 \). Is that <em>really</em> the effect of an extra lecture? What if he'd collected a different 150 students?</p>
+        <p>Click "Resample" a few times. Each click regenerates 150 students from the same world, refits the plane, and shows the new \( \hat b_2 \). Watch it wobble.</p>
+
+        <div class="controls">
+          <button id="btnResample1">Resample 150 students</button>
+          <div id="resampleReadout" style="font-family:'SF Mono',monospace;font-size:13px;color:var(--c-ink);background:#fafafa;padding:10px;border:1px solid var(--c-border);border-radius:3px;"></div>
+          <button id="btnResample500" class="climax">Resample 500 times → show the sampling distribution</button>
+          <div class="hist-holder" id="histHolder" style="display:none;">
+            <svg id="histSvg" viewBox="0 0 440 160" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+        </div>
+
+        <p style="margin-top:14px;">That spread has a name. The <strong>standard error</strong> (SE) is the standard deviation of \( \hat b_2 \) across hypothetical resamples.</p>
+        <p>Dr. Gauss reports it as a one-liner: \( \hat b_2 = 4.70,\; \text{SE} = 0.18,\; \text{95\% CI} = [4.35,\, 5.05] \). The <strong>95% confidence interval</strong> means: if we repeated this experiment many times, about 95% of the intervals we compute would cover the <em>population value</em> that \( \hat b_2 \) is estimating. (Whether that value equals the true causal effect of an extra lecture is a separate — and, as we'll see on the next page, urgent — question.)</p>
+        <p>And if someone doubts that X₂ matters at all — that is, claims \( b_2 = 0 \) — the <strong>p-value</strong> answers: "under that claim, how surprising is it to observe \( \hat b_2 = 4.7 \)?" A small p-value means: very surprising. Dr. Gauss replies, "I doubt \( b_2 = 0 \)."</p>
+
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>Sampling distribution, standard error (SE), confidence interval (CI), p-value.</span></div>
+      </section>
+
+      <!-- ===================== STAGE 6 ===================== -->
+      <section class="stage" data-stage="6">
+        <div class="kicker">Stage 6</div>
+        <h2>What a statistical package shows</h2>
+        <p>Dr. Gauss doesn't compute SE and CI by hand. He runs <code>lm(Y ~ X1 + X2)</code> in R, or <code>smf.ols('Y ~ X1 + X2', data).fit()</code> in Python's statsmodels. Here's what comes out, computed from the actual 150 students on the right:</p>
+
+        <div class="regout" id="regoutBox">loading…</div>
+
+        <p style="margin-top:14px;">Every column is now a concept you recognise:</p>
+        <ul style="margin:0 0 14px 18px;">
+          <li><strong>Estimate</strong> = \( \hat\beta \) from the closed form.</li>
+          <li><strong>Std. Error</strong> = the spread you just watched across resamples.</li>
+          <li><strong>t-value</strong> = Estimate ÷ SE — how many SEs is the estimate from zero?</li>
+          <li><strong>Pr(&gt;|t|)</strong> = the p-value under "this coefficient is really 0".</li>
+          <li><strong>R²</strong> = fraction of Y's variance the model explains (see the box below for the formula).</li>
+        </ul>
+
+        <div style="background:#fbf7ee;border-left:3px solid var(--c-truth);padding:12px 16px;margin:12px 0;border-radius:3px;">
+          <div style="font-weight:600;margin-bottom:6px;">What is R²?</div>
+          <p style="margin:0 0 8px 0;font-size:14px;">R² (the coefficient of determination) is defined as</p>
+          <p style="text-align:center;margin:6px 0;">\( R^2 \;=\; 1 \;-\; \dfrac{\mathrm{SS}_{\text{res}}}{\mathrm{SS}_{\text{tot}}} \;=\; 1 \;-\; \dfrac{\sum_i (y_i - \hat y_i)^2}{\sum_i (y_i - \bar y)^2} \)</p>
+          <p style="margin:8px 0 0 0;font-size:14px;">where \( \mathrm{SS}_{\text{res}} \) is the sum of squared residuals (what the model leaves unexplained) and \( \mathrm{SS}_{\text{tot}} \) is the total variation around the mean \( \bar y \). An \( R^2 \) of 1 means the model explains everything, 0 means it explains no more than a horizontal line at \( \bar y \), negative values are possible on held-out data when the model does worse than the mean. <strong>Adjusted R²</strong> penalises R² for each extra predictor, so it doesn't reward you for throwing more variables at the model.</p>
+        </div>
+
+        <div class="gauss-card">
+          <svg class="gauss-avatar" viewBox="0 0 44 44">
+            <circle cx="22" cy="22" r="20" fill="#fff" stroke="var(--c-gauss)" stroke-width="2"/>
+            <circle cx="22" cy="17" r="6" fill="#fff" stroke="var(--c-gauss)" stroke-width="1.3"/>
+            <circle cx="19.5" cy="16.5" r="0.9" fill="#2a2a2a"/>
+            <circle cx="24.5" cy="16.5" r="0.9" fill="#2a2a2a"/>
+            <path d="M18.5 20 Q22 23 25.5 20" fill="none" stroke="#2a2a2a" stroke-width="1" stroke-linecap="round"/>
+            <path d="M10 33 Q22 27 34 33 L34 40 L10 40 Z" fill="var(--c-gauss)" opacity="0.85"/>
+          </svg>
+          <div class="gauss-body">
+            Dr. Gauss is pleased. His predictions look plausible, his standard errors are tight, his R² is high. He reads off <strong>\( \hat b_2 \approx 4.7 \)</strong> — "an extra lecture is worth nearly five points on the exam" — and thinks he's done. <em>But…</em>
+          </div>
+        </div>
+
+        <p style="margin-top:14px;font-style:italic;color:var(--c-ink-muted);">Something is off. Every semester, certain students consistently sit above Dr. Gauss's plane. Others consistently sit below. If the residuals were just noise, they'd flip sign at random — but they don't. There's a <strong>ghost</strong> in the residuals — and, as we're about to see, it has been secretly inflating his \( \hat b_2 \) the whole time.</p>
+
+        <div class="stage-eq"><span class="stage-eq-label">This stage introduced:</span><span>Standard regression output: Estimate, Std. Error, t-value, p-value, R².</span></div>
+      </section>
+    </div>
+
+    <div class="viz-pane" id="vizPane">
+      <svg id="mainSvg" viewBox="0 0 600 500" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </main>
+
+  <section class="coda">
+    <p style="font-family:var(--serif);font-style:italic;color:var(--c-ink-muted);font-size:15px;">
+      Dr. Gauss's regression looks clean. But there are several ways it could be lying. Pick an issue to investigate next.
+    </p>
+    <a href="hub.html" class="nav-next">Pick an issue →</a>
+  </section>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <script type="module">
+    import { seededRandom, randn } from './shared/dgp.js';
+    import { ols } from './shared/regression.js';
+
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: '\\(', right: '\\)', display: false },
+        { left: '$$', right: '$$', display: true }
+      ],
+      throwOnError: false
+    });
+
+    // ---------- state ----------
+    const state = {
+      activeStage: 1,
+      seed: 7,
+      n: 150,
+      gamma1: 0.5,
+      gamma2: 1.5,
+      // Stage 2: manual fit of Y on X2 (simple regression)
+      manual: { a: 40.0, b: 5.0 },
+      revealedBest: false,
+      sample: null,
+      // stage 5
+      resamples: [],
+      b2Hat: null,
+      manyB2: null,
+      view: { azimuth: Math.PI / 6, elevation: Math.PI / 6 }
+    };
+    const DEFAULT_VIEW = { azimuth: Math.PI / 6, elevation: Math.PI / 6 };
+
+    // Use the same DGP as page 1 (doubled noise defaults).
+    function drawSample(seed) {
+      const rng = seededRandom(seed);
+      const n = state.n;
+      const U = new Float64Array(n), X1 = new Float64Array(n),
+            X2 = new Float64Array(n), Y  = new Float64Array(n);
+      const sdEta1 = Math.sqrt(0.5), sdEta2 = Math.sqrt(2.0);
+      for (let i = 0; i < n; i++) {
+        const u = randn(rng);
+        const eta1 = randn(rng) * sdEta1;
+        const eta2 = randn(rng) * sdEta2;
+        let x1 = 2 + state.gamma1 * u + eta1;
+        if (x1 <= 0.05) x1 = 0.05;
+        const x2 = 10 + state.gamma2 * u + eta2;
+        const epsSd = Math.sqrt(2.0 * Math.abs(x1));
+        const eps = randn(rng) * epsSd;
+        const y = 50 + 8 * Math.log(x1) + 3 * x2 + 6 * u + eps;
+        U[i]=u; X1[i]=x1; X2[i]=x2; Y[i]=y;
+      }
+      return { U, X1, X2, Y };
+    }
+    state.sample = drawSample(state.seed);
+
+    // New cohort: known X1, X2; Y unknown.
+    const newCohort = [
+      { name: 'Charlie', X1: 2.5, X2: 11, color: 'var(--c-charlie)' },
+      { name: 'David',   X1: 1.8, X2: 8,  color: 'var(--c-david)' },
+      { name: 'Evelyn',  X1: 3.5, X2: 13, color: 'var(--c-evelyn)' }
+    ];
+
+    // ---------- SVG root ----------
+    const svg = d3.select('#mainSvg');
+    const W = 600, H = 500;
+    const margin = { top: 30, right: 30, bottom: 50, left: 60 };
+    const iw = W - margin.left - margin.right;
+    const ih = H - margin.top - margin.bottom;
+    const defs = svg.append('defs');
+    // Clip path: restrict residual sticks and fit lines to the plot area,
+    // so extrapolated geometry is visually truncated instead of clamped
+    // (clamping would bend the line into a chord and misalign the sticks).
+    defs.append('clipPath').attr('id', 'plotClip')
+      .append('rect').attr('width', iw).attr('height', ih);
+
+    const root = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const gRidge = root.append('g').attr('class', 'g-ridge');
+    const gAxes = root.append('g').attr('class', 'g-axes');
+    const gCloud = root.append('g').attr('class', 'g-cloud').attr('clip-path', 'url(#plotClip)');
+    const gTrueCurve = root.append('g').attr('class', 'g-true').attr('clip-path', 'url(#plotClip)');
+    const gFit = root.append('g').attr('class', 'g-fit').attr('clip-path', 'url(#plotClip)');
+    const gResid = root.append('g').attr('class', 'g-resid').attr('clip-path', 'url(#plotClip)');
+    const gOverlay = root.append('g').attr('class', 'g-overlay');
+
+    function clearAll() {
+      gRidge.selectAll('*').remove();
+      gAxes.selectAll('*').remove();
+      gCloud.selectAll('*').remove();
+      gTrueCurve.selectAll('*').remove();
+      gFit.selectAll('*').remove();
+      gResid.selectAll('*').remove();
+      gOverlay.selectAll('*').remove();
+      // Remove any stray panes or ad-hoc groups that stages appended directly to root.
+      root.selectAll('.pane-l, .pane-r, .stage-ad-hoc').remove();
+      // Remove any foreignObject (stage 5/6 histograms & tables render via xhtml).
+      svg.selectAll('foreignObject').remove();
+    }
+
+    let xScale = d3.scaleLinear().domain([5, 15]).range([0, iw]);
+    let yScale = d3.scaleLinear().domain([55, 110]).range([ih, 0]);
+
+    function axes(xLabel, yLabel) {
+      gAxes.selectAll('*').remove();
+      const xAxis = d3.axisBottom(xScale).ticks(6);
+      const yAxis = d3.axisLeft(yScale).ticks(6);
+      gAxes.append('g').attr('transform', `translate(0,${ih})`).call(xAxis)
+        .selectAll('text').style('font-size','11px').style('fill','#666');
+      gAxes.append('g').call(yAxis)
+        .selectAll('text').style('font-size','11px').style('fill','#666');
+      gAxes.selectAll('path.domain, line').style('stroke','#bfbdb3');
+      gAxes.append('text').attr('x', iw/2).attr('y', ih+38).attr('text-anchor','middle')
+        .style('font-size','12px').style('fill','#444').text(xLabel);
+      gAxes.append('text').attr('transform', `translate(-44,${ih/2})rotate(-90)`)
+        .attr('text-anchor','middle').style('font-size','12px').style('fill','#444').text(yLabel);
+    }
+
+    // ---------- Stage 1: intro panel ----------
+    function renderStage1() {
+      clearAll();
+      // Simple hero-ish panel: 150 grey dots in X2/Y, with the new cohort marked at their X2 with "?"
+      xScale = d3.scaleLinear().domain([5, 15]).range([0, iw]);
+      yScale = d3.scaleLinear().domain([55, 110]).range([ih, 0]);
+      axes('X₂: lectures attended', 'Y: exam score');
+      const d = state.sample;
+      for (let i = 0; i < d.X2.length; i++) {
+        gCloud.append('circle')
+          .attr('cx', xScale(d.X2[i])).attr('cy', yScale(clamp(d.Y[i], 55, 110)))
+          .attr('r', 2.6).attr('fill', '#9aa0a6').attr('opacity', 0.55);
+      }
+      gOverlay.append('text').attr('x', 10).attr('y', 16)
+        .attr('font-size', 12).attr('fill', 'var(--c-ink-muted)').attr('font-style', 'italic')
+        .text('grey = 150 past students (Dr. Gauss\'s training data)');
+
+      newCohort.forEach(p => {
+        gOverlay.append('line')
+          .attr('x1', xScale(p.X2)).attr('x2', xScale(p.X2))
+          .attr('y1', yScale(55)).attr('y2', yScale(110))
+          .attr('stroke', p.color).attr('stroke-dasharray', '3 3').attr('stroke-width', 1.2).attr('opacity', 0.6);
+        gOverlay.append('circle')
+          .attr('cx', xScale(p.X2)).attr('cy', yScale(85))
+          .attr('r', 9).attr('fill', '#fff').attr('stroke', p.color).attr('stroke-width', 2);
+        gOverlay.append('text')
+          .attr('x', xScale(p.X2)).attr('y', yScale(85) + 4)
+          .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', p.color).attr('font-weight', 'bold')
+          .text('?');
+        gOverlay.append('text')
+          .attr('x', xScale(p.X2)).attr('y', yScale(110) - 6)
+          .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', p.color).attr('font-weight', 600)
+          .text(p.name);
+      });
+    }
+
+    // ---------- Stage 2: manual fit (line) ----------
+    function computeSSR(a, b) {
+      const d = state.sample;
+      let s = 0;
+      for (let i = 0; i < d.Y.length; i++) {
+        const r = d.Y[i] - (a + b * d.X2[i]);
+        s += r * r;
+      }
+      return s;
+    }
+
+    // OLS fit of Y on X2 alone. Returns {a, b, ssr}.
+    function olsSimpleX2() {
+      const d = state.sample;
+      const rows = Array.from(d.X2).map(v => [v]);
+      const res = ols(Array.from(d.Y), rows);
+      const a = res.coefficients[0], b = res.coefficients[1];
+      let ssr = 0; for (const r of res.residuals) ssr += r * r;
+      return { a, b, ssr };
+    }
+
+    function renderStage2() {
+      clearAll();
+      xScale = d3.scaleLinear().domain([5, 15]).range([0, iw]);
+      yScale = d3.scaleLinear().domain([55, 110]).range([ih, 0]);
+      axes('X₂: lectures attended', 'Y: exam score');
+      const d = state.sample;
+      for (let i = 0; i < d.X2.length; i++) {
+        gCloud.append('circle')
+          .attr('cx', xScale(d.X2[i])).attr('cy', yScale(clamp(d.Y[i], 55, 110)))
+          .attr('r', 2.6).attr('fill', '#6a7a8a').attr('opacity', 0.65);
+      }
+
+      // residual sticks from each data point to the current manual line.
+      // No clamping: the gResid group has a clip-path that trims anything
+      // outside the plot area, keeping the geometry honest.
+      const { a, b } = state.manual;
+      for (let i = 0; i < d.Y.length; i++) {
+        const yhat = a + b * d.X2[i];
+        gResid.append('line')
+          .attr('x1', xScale(d.X2[i])).attr('x2', xScale(d.X2[i]))
+          .attr('y1', yScale(d.Y[i])).attr('y2', yScale(yhat))
+          .attr('stroke', '#c0392b').attr('stroke-width', 0.8).attr('opacity', 0.4);
+      }
+
+      // manual line (true geometry; clip-path handles visual trimming)
+      const xLo = 5, xHi = 15;
+      gFit.append('line')
+        .attr('x1', xScale(xLo)).attr('y1', yScale(a + b * xLo))
+        .attr('x2', xScale(xHi)).attr('y2', yScale(a + b * xHi))
+        .attr('stroke', '#c0392b').attr('stroke-width', 2.2).attr('opacity', 0.95);
+
+      // If revealed, also draw the OLS best-fit line in green
+      if (state.revealedBest) {
+        const best = olsSimpleX2();
+        gFit.append('line')
+          .attr('x1', xScale(xLo)).attr('y1', yScale(best.a + best.b * xLo))
+          .attr('x2', xScale(xHi)).attr('y2', yScale(best.a + best.b * xHi))
+          .attr('stroke', 'var(--c-est)').attr('stroke-width', 2.4).attr('stroke-dasharray', '5 3').attr('opacity', 0.95);
+        gOverlay.append('text').attr('x', iw - 8).attr('y', 18)
+          .attr('text-anchor', 'end').attr('font-size', 11).attr('fill', 'var(--c-est)').attr('font-weight', 600)
+          .text(`OLS: a=${best.a.toFixed(2)}, b=${best.b.toFixed(2)}, SSR=${fmt0(best.ssr)}`);
+      }
+
+      gOverlay.append('text').attr('x', 10).attr('y', 18)
+        .attr('font-size', 12).attr('fill', '#c0392b').attr('font-weight', 600)
+        .text(`Your line: Y = ${a.toFixed(2)} + ${b.toFixed(2)}·X₂`);
+
+      updateStage2Readouts();
+    }
+
+    function updateStage2Readouts() {
+      const ssr = computeSSR(state.manual.a, state.manual.b);
+      const el = document.getElementById('ssrVal');
+      const best = olsSimpleX2().ssr;
+      el.textContent = fmt0(ssr);
+      el.classList.remove('good', 'best');
+      if (ssr <= best * 1.02) el.classList.add('best');
+      else if (ssr <= best * 1.30) el.classList.add('good');
+      const bestBox = document.getElementById('ssrBest');
+      if (state.revealedBest) {
+        bestBox.classList.add('revealed');
+        bestBox.innerHTML = `Dr. Gauss's closed-form minimum: <strong>SSR = ${fmt0(best)}</strong> at a = ${olsSimpleX2().a.toFixed(2)}, b = ${olsSimpleX2().b.toFixed(2)}.`;
+      }
+    }
+
+    // ---------- Stage 3: split comparison ----------
+    function renderStage3() {
+      clearAll();
+      // Two side-by-side mini-plots
+      const panelW = (iw - 20) / 2;
+      const panelH = ih - 20;
+      const paneL = root.append('g').attr('class', 'pane-l').attr('transform', `translate(0, 0)`);
+      const paneR = root.append('g').attr('class', 'pane-r').attr('transform', `translate(${panelW + 20}, 0)`);
+      gOverlay.append('g'); // keep tidy
+
+      const d = state.sample;
+      const xLo = 5, xHi = 15, yLo = 55, yHi = 110;
+      const xS = d3.scaleLinear().domain([xLo, xHi]).range([0, panelW]);
+      const yS = d3.scaleLinear().domain([yLo, yHi]).range([panelH, 0]);
+
+      function drawPane(pane, a, b, title, color, ssr) {
+        pane.append('rect').attr('width', panelW).attr('height', panelH)
+          .attr('fill', 'none').attr('stroke', '#e4dfd5');
+        // Per-pane clip path so residuals and fit line are truncated at the
+        // pane boundary but not geometrically clamped.
+        const clipId = `paneClip-${Math.random().toString(36).slice(2, 8)}`;
+        defs.append('clipPath').attr('id', clipId)
+          .append('rect').attr('width', panelW).attr('height', panelH);
+        const gDraw = pane.append('g').attr('clip-path', `url(#${clipId})`);
+        // axes
+        pane.append('g').attr('transform', `translate(0,${panelH})`)
+          .call(d3.axisBottom(xS).ticks(5)).selectAll('text').style('font-size','10px').style('fill','#666');
+        pane.append('g').call(d3.axisLeft(yS).ticks(5))
+          .selectAll('text').style('font-size','10px').style('fill','#666');
+        pane.selectAll('path.domain, line').style('stroke','#bfbdb3');
+        // dots
+        for (let i = 0; i < d.X2.length; i++) {
+          gDraw.append('circle')
+            .attr('cx', xS(d.X2[i])).attr('cy', yS(d.Y[i]))
+            .attr('r', 2).attr('fill', '#6a7a8a').attr('opacity', 0.55);
+        }
+        // residual sticks (no clamping; clipped by clip-path)
+        for (let i = 0; i < d.Y.length; i++) {
+          const yhat = a + b * d.X2[i];
+          gDraw.append('line')
+            .attr('x1', xS(d.X2[i])).attr('x2', xS(d.X2[i]))
+            .attr('y1', yS(d.Y[i])).attr('y2', yS(yhat))
+            .attr('stroke', color).attr('stroke-width', 0.7).attr('opacity', 0.35);
+        }
+        // line (true geometry; clip-path trims outside the pane)
+        gDraw.append('line')
+          .attr('x1', xS(xLo)).attr('y1', yS(a + b * xLo))
+          .attr('x2', xS(xHi)).attr('y2', yS(a + b * xHi))
+          .attr('stroke', color).attr('stroke-width', 2.2);
+        // title + SSR
+        pane.append('text').attr('x', 8).attr('y', 14)
+          .attr('font-size', 12).attr('font-weight', 600).attr('fill', color).text(title);
+        pane.append('text').attr('x', 8).attr('y', 30)
+          .attr('font-size', 11).attr('fill', '#444')
+          .text(`SSR = ${fmt0(ssr)}`);
+      }
+
+      const { a: ma, b: mb } = state.manual;
+      drawPane(paneL, ma, mb, 'Your manual fit', '#c0392b', computeSSR(ma, mb));
+      const best = olsSimpleX2();
+      drawPane(paneR, best.a, best.b, "Dr. Gauss's OLS fit", 'var(--c-est)', best.ssr);
+    }
+
+    // ---------- Stage 4: 3D plane with new cohort ----------
+    const STAGE3D_DOMAIN = { x1: [0.2, 4.5], x2: [5, 15], y: [55, 110] };
+
+    function makeRotatable3D(x1Domain, x2Domain, yDomain, viewW, viewH) {
+      const nX1 = d => (d - x1Domain[0]) / (x1Domain[1] - x1Domain[0]);
+      const nX2 = d => (d - x2Domain[0]) / (x2Domain[1] - x2Domain[0]);
+      const nY  = d => (d - yDomain[0])  / (yDomain[1]  - yDomain[0]);
+      const pad = 40;
+      return function project(x1, x2, y) {
+        const u1 = nX1(x1) - 0.5;
+        const u2 = nX2(x2) - 0.5;
+        const uy = nY(y)  - 0.5;
+        const ca = Math.cos(state.view.azimuth), sa = Math.sin(state.view.azimuth);
+        const x1r = u1 * ca - u2 * sa;
+        const zr  = u1 * sa + u2 * ca;
+        const ce = Math.cos(state.view.elevation), se = Math.sin(state.view.elevation);
+        const yr = uy * ce - zr * se;
+        const scale = Math.min(viewW - 2 * pad, viewH - 2 * pad);
+        return [viewW / 2 + x1r * scale, viewH / 2 - yr * scale];
+      };
+    }
+
+    function drawIsoAxes(project, x1D, x2D, yD, labels) {
+      const origin = project(x1D[0], x2D[0], yD[0]);
+      const tipX1 = project(x1D[1], x2D[0], yD[0]);
+      const tipX2 = project(x1D[0], x2D[1], yD[0]);
+      const tipY  = project(x1D[0], x2D[0], yD[1]);
+      const nGrid = 4;
+      for (let i = 0; i <= nGrid; i++) {
+        const t = i / nGrid;
+        const x1Val = x1D[0] + t * (x1D[1] - x1D[0]);
+        const x2Val = x2D[0] + t * (x2D[1] - x2D[0]);
+        const a = project(x1Val, x2D[0], yD[0]);
+        const b = project(x1Val, x2D[1], yD[0]);
+        gOverlay.append('line').attr('x1',a[0]).attr('y1',a[1]).attr('x2',b[0]).attr('y2',b[1])
+          .attr('stroke','#d6d6d6').attr('stroke-width', 0.7);
+        const c = project(x1D[0], x2Val, yD[0]);
+        const e = project(x1D[1], x2Val, yD[0]);
+        gOverlay.append('line').attr('x1',c[0]).attr('y1',c[1]).attr('x2',e[0]).attr('y2',e[1])
+          .attr('stroke','#d6d6d6').attr('stroke-width', 0.7);
+      }
+      gOverlay.append('line').attr('x1',origin[0]).attr('y1',origin[1]).attr('x2',tipX1[0]).attr('y2',tipX1[1])
+        .attr('stroke','#333').attr('stroke-width', 1.3);
+      gOverlay.append('line').attr('x1',origin[0]).attr('y1',origin[1]).attr('x2',tipX2[0]).attr('y2',tipX2[1])
+        .attr('stroke','#333').attr('stroke-width', 1.3);
+      gOverlay.append('line').attr('x1',origin[0]).attr('y1',origin[1]).attr('x2',tipY[0]).attr('y2',tipY[1])
+        .attr('stroke','#333').attr('stroke-width', 1.3);
+      gOverlay.append('text').attr('x',tipX1[0]+4).attr('y',tipX1[1]+14)
+        .attr('font-size',11).attr('fill','#222').attr('font-style','italic').text(labels.x1);
+      gOverlay.append('text').attr('x',tipX2[0]-4).attr('y',tipX2[1]+14)
+        .attr('text-anchor','end').attr('font-size',11).attr('fill','#222').attr('font-style','italic').text(labels.x2);
+      gOverlay.append('text').attr('x',tipY[0]).attr('y',tipY[1]-6)
+        .attr('text-anchor','middle').attr('font-size',11).attr('fill','#222').attr('font-style','italic').text(labels.y);
+    }
+
+    function fitPlane() {
+      const d = state.sample;
+      const rows = [];
+      for (let i = 0; i < d.Y.length; i++) rows.push([d.X1[i], d.X2[i]]);
+      return ols(Array.from(d.Y), rows);
+    }
+
+    function renderStage4() {
+      clearAll();
+      const d = state.sample;
+      const x1D = STAGE3D_DOMAIN.x1, x2D = STAGE3D_DOMAIN.x2, yD = STAGE3D_DOMAIN.y;
+      const project = makeRotatable3D(x1D, x2D, yD, iw, ih);
+      drawIsoAxes(project, x1D, x2D, yD, { x1: 'X₁: hours', x2: 'X₂: lectures', y: 'Y: exam score' });
+      const clipY = v => clamp(v, yD[0], yD[1]);
+
+      const fit = fitPlane();
+      const a = fit.coefficients[0], b1 = fit.coefficients[1], b2 = fit.coefficients[2];
+      state.b2Hat = b2;
+
+      // plane
+      const planeY = (x1, x2) => a + b1 * x1 + b2 * x2;
+      const res = 8;
+      for (let i = 0; i < res; i++) {
+        for (let j = 0; j < res; j++) {
+          const x1a = x1D[0] + (i / res) * (x1D[1] - x1D[0]);
+          const x1b = x1D[0] + ((i + 1) / res) * (x1D[1] - x1D[0]);
+          const x2a = x2D[0] + (j / res) * (x2D[1] - x2D[0]);
+          const x2b = x2D[0] + ((j + 1) / res) * (x2D[1] - x2D[0]);
+          const p1 = project(x1a, x2a, clipY(planeY(x1a, x2a)));
+          const p2 = project(x1b, x2a, clipY(planeY(x1b, x2a)));
+          const p3 = project(x1a, x2b, clipY(planeY(x1a, x2b)));
+          gFit.append('line').attr('x1',p1[0]).attr('y1',p1[1]).attr('x2',p2[0]).attr('y2',p2[1])
+            .attr('stroke','var(--c-est)').attr('stroke-width', 1.0).attr('opacity', 0.55);
+          gFit.append('line').attr('x1',p1[0]).attr('y1',p1[1]).attr('x2',p3[0]).attr('y2',p3[1])
+            .attr('stroke','var(--c-est)').attr('stroke-width', 1.0).attr('opacity', 0.55);
+        }
+      }
+
+      // data dots, sorted back-to-front
+      const indices = d3.range(d.Y.length).sort((x, y) => {
+        const pa = project(d.X1[x], d.X2[x], d.Y[x]);
+        const pb = project(d.X1[y], d.X2[y], d.Y[y]);
+        return pa[1] - pb[1];
+      });
+      for (const i of indices) {
+        const [sx, sy] = project(d.X1[i], d.X2[i], clipY(d.Y[i]));
+        gCloud.append('circle')
+          .attr('cx', sx).attr('cy', sy)
+          .attr('r', 3.0).attr('fill', '#6a7a8a').attr('opacity', 0.75)
+          .attr('stroke', '#fff').attr('stroke-width', 0.4);
+      }
+
+      // new cohort markers floating on plane
+      newCohort.forEach(p => {
+        const yhat = planeY(p.X1, p.X2);
+        const yhatC = clipY(yhat);
+        const [fx, fy] = project(p.X1, p.X2, yD[0]);
+        const [tx, ty] = project(p.X1, p.X2, yhatC);
+        gOverlay.append('line').attr('x1', fx).attr('y1', fy).attr('x2', tx).attr('y2', ty)
+          .attr('stroke', p.color).attr('stroke-width', 2).attr('opacity', 0.9);
+        gOverlay.append('circle').attr('cx', tx).attr('cy', ty).attr('r', 5)
+          .attr('fill', '#fff').attr('stroke', p.color).attr('stroke-width', 2);
+        gOverlay.append('text').attr('x', tx + 8).attr('y', ty - 6)
+          .attr('font-size', 11).attr('fill', p.color).attr('font-weight', 600)
+          .text(`${p.name}: Ŷ ≈ ${yhat.toFixed(1)}`);
+      });
+
+      gOverlay.append('text').attr('x', 10).attr('y', 18)
+        .attr('font-size', 11).attr('fill', 'var(--c-est)').attr('font-weight', 600)
+        .text(`Plane: Ŷ = ${a.toFixed(2)} + ${b1.toFixed(2)}·X₁ + ${b2.toFixed(2)}·X₂`);
+
+      draw3DAffordances();
+    }
+
+    // ---------- Stage 5: sampling distribution ----------
+    function renderStage5() {
+      // The main viz: show the current fitted plane + a highlight on b2.
+      // We reuse renderStage4 for the visual, then overlay a b2 annotation.
+      renderStage4();
+      const d = state.sample;
+      const fit = fitPlane();
+      state.b2Hat = fit.coefficients[2];
+      gOverlay.append('text').attr('x', 10).attr('y', 38)
+        .attr('font-size', 12).attr('fill', 'var(--c-truth)').attr('font-weight', 600)
+        .text(`β̂₂ on current sample = ${state.b2Hat.toFixed(3)}`);
+
+      updateResampleReadout();
+      if (state.manyB2) drawHistogram();
+    }
+
+    function resampleOnce() {
+      state.seed = (state.seed + 1) | 0;
+      state.sample = drawSample(state.seed);
+      const fit = fitPlane();
+      const b2 = fit.coefficients[2];
+      state.b2Hat = b2;
+      state.resamples.push(b2);
+      if (state.resamples.length > 10) state.resamples.shift();
+    }
+
+    function updateResampleReadout() {
+      const el = document.getElementById('resampleReadout');
+      if (!el) return;
+      if (!state.resamples.length) {
+        el.textContent = 'Click "Resample" to see β̂₂ wobble.';
+        return;
+      }
+      const rows = state.resamples.map((v, i) => `resample ${i+1}:  β̂₂ = ${v.toFixed(3)}`);
+      el.textContent = rows.join('\n');
+    }
+
+    function resample500() {
+      const b2s = new Float64Array(500);
+      let seed = (state.seed + 1000) | 0;
+      for (let r = 0; r < 500; r++) {
+        seed = (seed + 1) | 0;
+        const smp = drawSample(seed);
+        const rows = [];
+        for (let i = 0; i < smp.Y.length; i++) rows.push([smp.X1[i], smp.X2[i]]);
+        const f = ols(Array.from(smp.Y), rows);
+        b2s[r] = f.coefficients[2];
+      }
+      state.manyB2 = b2s;
+      drawHistogram();
+    }
+
+    function drawHistogram() {
+      const holder = document.getElementById('histHolder');
+      holder.style.display = 'block';
+      const svgH = d3.select('#histSvg');
+      svgH.selectAll('*').remove();
+      const W = 440, H = 160, M = { top: 14, right: 10, bottom: 30, left: 36 };
+      const iw2 = W - M.left - M.right, ih2 = H - M.top - M.bottom;
+      const g = svgH.append('g').attr('transform', `translate(${M.left},${M.top})`);
+
+      const data = Array.from(state.manyB2);
+      const ext = d3.extent(data);
+      const pad = (ext[1] - ext[0]) * 0.1 || 0.1;
+      const xS = d3.scaleLinear().domain([ext[0] - pad, ext[1] + pad]).range([0, iw2]);
+      const bins = d3.bin().domain(xS.domain()).thresholds(30)(data);
+      const yS = d3.scaleLinear().domain([0, d3.max(bins, b => b.length)]).range([ih2, 0]);
+
+      g.selectAll('rect').data(bins).enter().append('rect')
+        .attr('x', b => xS(b.x0) + 0.5)
+        .attr('y', b => yS(b.length))
+        .attr('width', b => Math.max(0.5, xS(b.x1) - xS(b.x0) - 1))
+        .attr('height', b => ih2 - yS(b.length))
+        .attr('fill', 'var(--c-truth)').attr('opacity', 0.6);
+
+      // mean + true
+      const mean = d3.mean(data);
+      const sd = d3.deviation(data);
+      g.append('line').attr('x1', xS(3)).attr('x2', xS(3))
+        .attr('y1', 0).attr('y2', ih2).attr('stroke', 'var(--c-alice)').attr('stroke-width', 2).attr('stroke-dasharray', '4 3');
+      g.append('text').attr('x', xS(3) + 4).attr('y', 12).attr('font-size', 10).attr('fill', 'var(--c-alice)')
+        .text('true β₂ = 3 (!)');
+      g.append('text').attr('x', xS(mean)).attr('y', -2).attr('font-size', 10).attr('fill', 'var(--c-est)')
+        .attr('text-anchor', 'middle').text(`mean = ${mean.toFixed(2)}, SE ≈ ${sd.toFixed(3)}`);
+
+      g.append('g').attr('transform', `translate(0,${ih2})`).call(d3.axisBottom(xS).ticks(6))
+        .selectAll('text').style('font-size','10px').style('fill','#666');
+      g.append('g').call(d3.axisLeft(yS).ticks(4))
+        .selectAll('text').style('font-size','10px').style('fill','#666');
+      g.append('text').attr('x', iw2/2).attr('y', ih2 + 24).attr('text-anchor', 'middle')
+        .attr('font-size', 11).attr('fill', '#444').text('β̂₂ across 500 resamples');
+    }
+
+    // ---------- Stage 6: regression output ----------
+    function renderStage6() {
+      renderStage4();
+      // build regression output text
+      const d = state.sample;
+      const rows = [];
+      for (let i = 0; i < d.Y.length; i++) rows.push([d.X1[i], d.X2[i]]);
+      const res = ols(Array.from(d.Y), rows);
+      const names = ['(Intercept)', 'X1         ', 'X2         '];
+      let out = '';
+      out += 'Coefficients:\n';
+      out += '               Estimate   Std. Error   t-value   Pr(>|t|)\n';
+      for (let i = 0; i < 3; i++) {
+        const est = res.coefficients[i].toFixed(3).padStart(8);
+        const se  = res.se[i].toFixed(3).padStart(10);
+        const t   = res.tStats[i].toFixed(2).padStart(8);
+        const p   = res.pValues[i] < 1e-10 ? '   <2e-16' : res.pValues[i].toExponential(2).padStart(10);
+        const stars = res.pValues[i] < 0.001 ? ' ***' : res.pValues[i] < 0.01 ? ' **' : res.pValues[i] < 0.05 ? ' *' : '';
+        out += `${names[i]}  ${est}  ${se}  ${t}  ${p}${stars}\n`;
+      }
+      out += `\nResidual standard error: ${res.residSE.toFixed(2)} on ${res.df} degrees of freedom\n`;
+      out += `Multiple R-squared: ${res.r2.toFixed(3)},   Adjusted R-squared: ${(1 - (1-res.r2)*(res.n-1)/res.df).toFixed(3)}\n`;
+      const fStat = ((res.r2 / (res.p - 1)) / ((1 - res.r2) / res.df)).toFixed(1);
+      out += `F-statistic: ${fStat} on ${res.p - 1} and ${res.df} DF, p-value: <2e-16\n`;
+      out += `\nSignif. codes:  0 *** 0.001 ** 0.01 * 0.05\n`;
+      const box = document.getElementById('regoutBox');
+      if (box) box.textContent = out;
+    }
+
+    // ---------- 3D affordances & rotation ----------
+    function is3DStage(n) { return n === 4; }
+    function draw3DAffordances() {
+      gOverlay.append('text')
+        .attr('x', 10).attr('y', ih - 8)
+        .attr('font-size', 11).attr('fill', '#888').attr('font-style', 'italic')
+        .attr('pointer-events', 'none')
+        .text('Drag to rotate');
+      const btn = gOverlay.append('g')
+        .attr('class', 'btn-reset-view')
+        .attr('transform', `translate(${iw - 90}, ${-16})`)
+        .style('cursor', 'pointer');
+      btn.append('rect')
+        .attr('width', 82).attr('height', 20)
+        .attr('rx', 4).attr('ry', 4)
+        .attr('fill', '#fff').attr('stroke', 'var(--c-truth)').attr('stroke-width', 1);
+      btn.append('text')
+        .attr('x', 41).attr('y', 14)
+        .attr('text-anchor', 'middle').attr('font-size', 11)
+        .attr('fill', 'var(--c-truth)')
+        .attr('pointer-events', 'none')
+        .text('Reset view');
+      btn.on('click', (ev) => {
+        ev.stopPropagation();
+        state.view.azimuth = DEFAULT_VIEW.azimuth;
+        state.view.elevation = DEFAULT_VIEW.elevation;
+        renderCurrentStage();
+      });
+    }
+
+    let dragState = null;
+    svg.on('mousedown', function(ev) {
+      if (!is3DStage(state.activeStage)) return;
+      if (ev.target && ev.target.closest && ev.target.closest('.btn-reset-view')) return;
+      dragState = { x: ev.clientX, y: ev.clientY, az: state.view.azimuth, el: state.view.elevation };
+      svg.style('cursor', 'grabbing');
+      ev.preventDefault();
+    });
+    svg.on('mousemove', function() {
+      if (!is3DStage(state.activeStage)) return;
+      if (!dragState) svg.style('cursor', 'grab');
+    });
+    svg.on('mouseleave', function() { if (!dragState) svg.style('cursor', null); });
+    window.addEventListener('mousemove', ev => {
+      if (!dragState) return;
+      const dx = ev.clientX - dragState.x;
+      const dy = ev.clientY - dragState.y;
+      state.view.azimuth = dragState.az + dx * 0.008;
+      state.view.elevation = Math.max(-Math.PI / 2 + 0.05,
+        Math.min(Math.PI / 2 - 0.05, dragState.el + dy * 0.008));
+      renderCurrentStage();
+    });
+    window.addEventListener('mouseup', () => { dragState = null; svg.style('cursor', null); });
+    svg.on('touchstart', function(ev) {
+      if (!is3DStage(state.activeStage)) return;
+      const t = ev.touches[0];
+      dragState = { x: t.clientX, y: t.clientY, az: state.view.azimuth, el: state.view.elevation };
+      ev.preventDefault();
+    });
+    window.addEventListener('touchmove', ev => {
+      if (!dragState) return;
+      const t = ev.touches[0];
+      const dx = t.clientX - dragState.x;
+      const dy = t.clientY - dragState.y;
+      state.view.azimuth = dragState.az + dx * 0.008;
+      state.view.elevation = Math.max(-Math.PI / 2 + 0.05,
+        Math.min(Math.PI / 2 - 0.05, dragState.el + dy * 0.008));
+      renderCurrentStage();
+      ev.preventDefault();
+    }, { passive: false });
+    window.addEventListener('touchend', () => { dragState = null; });
+
+    // ---------- helpers ----------
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function fmt0(v) { return Math.round(v).toLocaleString('en-US'); }
+
+    // ---------- stage dispatch ----------
+    const stageTitles = {
+      1: 'New cohort, new researcher',
+      2: 'Fit the line by hand',
+      3: 'The loss function',
+      4: 'Adding a second variable',
+      5: 'How sure is Dr. Gauss?',
+      6: 'The regression output'
+    };
+
+    function renderCurrentStage() {
+      const s = state.activeStage;
+      if (s === 1) renderStage1();
+      else if (s === 2) renderStage2();
+      else if (s === 3) renderStage3();
+      else if (s === 4) renderStage4();
+      else if (s === 5) renderStage5();
+      else if (s === 6) renderStage6();
+    }
+
+    function renderStage(n) {
+      state.activeStage = n;
+      document.getElementById('stageNum').textContent = n;
+      document.getElementById('stageTitle').textContent = stageTitles[n] || '';
+      // Formula tracker: fade in SE/CI line when stage >= 5.
+      const fLineSE = document.getElementById('fLineSE');
+      if (fLineSE) fLineSE.classList.toggle('visible', n >= 5);
+      renderCurrentStage();
+    }
+
+    // ---------- intersection observer (highest ratio wins) ----------
+    const sections = document.querySelectorAll('.stage');
+    const ratios = new Map();
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const n = +entry.target.dataset.stage;
+        ratios.set(n, entry.intersectionRatio);
+      });
+      let best = null, bestRatio = 0;
+      for (const [n, r] of ratios) {
+        if (r > bestRatio) { best = n; bestRatio = r; }
+      }
+      if (best !== null && best !== state.activeStage && bestRatio > 0.35) {
+        renderStage(best);
+      }
+    }, { threshold: Array.from({length: 21}, (_, i) => i / 20) });
+    sections.forEach(s => io.observe(s));
+
+    // ---------- control wiring ----------
+    const sliderA = document.getElementById('sliderA');
+    const sliderB = document.getElementById('sliderB');
+    const valA = document.getElementById('valA');
+    const valB = document.getElementById('valB');
+    sliderA.addEventListener('input', e => {
+      state.manual.a = +e.target.value;
+      valA.textContent = state.manual.a.toFixed(1);
+      if (state.activeStage === 2) renderStage2();
+      else if (state.activeStage === 3) renderStage3();
+      else updateStage2Readouts();
+    });
+    sliderB.addEventListener('input', e => {
+      state.manual.b = +e.target.value;
+      valB.textContent = state.manual.b.toFixed(2);
+      if (state.activeStage === 2) renderStage2();
+      else if (state.activeStage === 3) renderStage3();
+      else updateStage2Readouts();
+    });
+    document.getElementById('btnRevealBest').addEventListener('click', () => {
+      state.revealedBest = true;
+      const best = olsSimpleX2();
+      // animate sliders to the OLS solution
+      const startA = state.manual.a, startB = state.manual.b;
+      const steps = 30;
+      let k = 0;
+      const id = setInterval(() => {
+        k++;
+        const t = k / steps;
+        state.manual.a = startA + t * (best.a - startA);
+        state.manual.b = startB + t * (best.b - startB);
+        sliderA.value = state.manual.a;
+        sliderB.value = state.manual.b;
+        valA.textContent = state.manual.a.toFixed(1);
+        valB.textContent = state.manual.b.toFixed(2);
+        if (state.activeStage === 2) renderStage2();
+        else updateStage2Readouts();
+        if (k >= steps) clearInterval(id);
+      }, 30);
+    });
+
+    document.getElementById('btnResample1').addEventListener('click', () => {
+      resampleOnce();
+      updateResampleReadout();
+      if (state.activeStage === 5) renderStage5();
+    });
+    document.getElementById('btnResample500').addEventListener('click', () => {
+      resample500();
+      if (state.activeStage === 5) renderStage5();
+    });
+
+    // keyboard nav
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        const next = Math.min(6, state.activeStage + 1);
+        const target = document.querySelector(`[data-stage="${next}"]`);
+        target && target.scrollIntoView({ behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        const prev = Math.max(1, state.activeStage - 1);
+        const target = document.querySelector(`[data-stage="${prev}"]`);
+        target && target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
+    renderStage(1);
+  </script>
+</body>
+</html>
