@@ -28,19 +28,28 @@ export function randn(rng) {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
-// Noise-free labelling rules. Each returns 0 or 1.
+// Continuous score functions for the true decision rule.
+// Sign convention: score(x) > 0 ⇒ class 1, score(x) ≤ 0 ⇒ class 0.
+// Exposing the *score* (not just the thresholded label) lets the plot
+// code draw a smooth iso-contour at level 0 via marching squares —
+// otherwise the contour snaps to grid midpoints and looks dashed/jagged.
 export const TRUE_BOUNDARY = {
-  linear:      (x1, x2) => (x1 + x2 > 12 ? 1 : 0),
-  circular:    (x1, x2) => (((x1 - 5) * (x1 - 5) + (x2 - 7) * (x2 - 7)) > 14 ? 1 : 0),
-  disjunction: (x1, x2) => (x1 > 6 || x2 > 10 ? 1 : 0)
+  linear:      (x1, x2) => (x1 + x2) - 12,
+  circular:    (x1, x2) => ((x1 - 5) * (x1 - 5) + (x2 - 7) * (x2 - 7)) - 14,
+  // Smooth max approximates x1>6 OR x2>10: positive iff either margin is positive.
+  disjunction: (x1, x2) => Math.max(x1 - 6, x2 - 10),
+  // Wavy band: attendance must outpace a sinusoidal threshold in hours.
+  // Non-linear, non-axis-aligned — the staircase approximation a tree makes
+  // of this boundary is the pedagogical punchline.
+  wavy:        (x1, x2) => x2 - (7 + 2.5 * Math.sin(0.9 * x1))
 };
 
 // Generate n labelled 2D points. Returns parallel typed arrays.
-// opts: { noise (flip probability, default 0.05), boundary in {'linear','circular','disjunction'} }.
+// opts: { noise (flip probability, default 0.15), boundary in {'linear','circular','disjunction','wavy'} }.
 export function generateData(n = 150, seed = 42, opts = {}) {
-  const { noise = 0.05, boundary = 'linear' } = opts;
-  const rule = TRUE_BOUNDARY[boundary];
-  if (!rule) throw new Error(`Unknown boundary: ${boundary}`);
+  const { noise = 0.15, boundary = 'wavy' } = opts;
+  const score = TRUE_BOUNDARY[boundary];
+  if (!score) throw new Error(`Unknown boundary: ${boundary}`);
 
   const rng = seededRandom(seed);
   const X1 = new Float64Array(n);
@@ -50,7 +59,7 @@ export function generateData(n = 150, seed = 42, opts = {}) {
   for (let i = 0; i < n; i++) {
     const x1 = rng() * 10;
     const x2 = rng() * 14;
-    let label = rule(x1, x2);
+    let label = score(x1, x2) > 0 ? 1 : 0;
     // Independent label flip with probability `noise`.
     if (rng() < noise) label = 1 - label;
     X1[i] = x1;

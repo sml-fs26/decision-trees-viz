@@ -219,8 +219,8 @@
         <div class="kicker">Stage 4</div>
         <h2>The true boundary</h2>
         <p>Secretly, there <em>is</em> a rule. The world was built with one. For this cohort:</p>
-        <p style="text-align:center;">\( \text{pass} \iff X_1 + X_2 > 12 \)</p>
-        <p>We draw it as a <span style="color:var(--c-truth);font-weight:600;">gold dashed line</span>. Look how well (and not perfectly) it separates pink from blue.</p>
+        <p style="text-align:center;">\( \text{pass} \iff X_2 > 7 + 2.5\sin(0.9\, X_1) \)</p>
+        <p>We draw it as a <span style="color:var(--c-truth);font-weight:600;">gold dashed curve</span>. It's a wavy band, not a straight line — which matters, because a tree can only carve axis-aligned rectangles, so it will have to <em>staircase</em> around this curve. Look how well (and not perfectly) it separates pink from blue.</p>
         <blockquote>
           Somewhere out there, a rule decides the label. Our job is to learn it from the data.
         </blockquote>
@@ -285,8 +285,8 @@
           <div class="row" id="rowNoise">
             <label style="flex:1;">
               noise level
-              <input type="range" id="sldNoise" min="0" max="0.20" step="0.01" value="0.05" aria-label="label noise level from 0 to 0.2" />
-              <span class="val" id="valNoise">0.05</span>
+              <input type="range" id="sldNoise" min="0" max="0.30" step="0.01" value="0.15" aria-label="label noise level from 0 to 0.3" />
+              <span class="val" id="valNoise">0.15</span>
             </label>
           </div>
         </div>
@@ -311,7 +311,7 @@
     const state = {
       activeStage: 1,
       seed: 42,
-      noise: 0.05,
+      noise: 0.15,
       showBoundary: false,    // only meaningful from stage 4
       sample: null            // {X1, X2, y}
     };
@@ -327,7 +327,7 @@
     function regenSample() {
       state.sample = generateData(150, state.seed, {
         noise: state.noise,
-        boundary: 'linear'
+        boundary: 'wavy'
       });
     }
     regenSample();
@@ -470,7 +470,7 @@
       // checkbox is a user override.
       const userHid = chkBound.dataset.userTouched === '1' && !state.showBoundary;
       if (!userHid) {
-        scatter.setBoundary(TRUE_BOUNDARY.linear);
+        scatter.setBoundary(TRUE_BOUNDARY.wavy);
       }
     }
 
@@ -478,7 +478,7 @@
       clearAll();
       drawCohort({ highlightDemo: false });
       const userHid = chkBound.dataset.userTouched === '1' && !state.showBoundary;
-      if (!userHid) scatter.setBoundary(TRUE_BOUNDARY.linear);
+      if (!userHid) scatter.setBoundary(TRUE_BOUNDARY.wavy);
     }
 
     const stageRenderers = {

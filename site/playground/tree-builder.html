@@ -304,7 +304,7 @@
           </label>
         </div>
 
-        <p style="margin-top:12px;">Try a few positions. Try the horizontal split too. Notice that <em>any</em> single axis-aligned line still leaves a lot of students on the wrong side — the true rule is a diagonal, and a single axis cut can only approximate it.</p>
+        <p style="margin-top:12px;">Try a few positions. Try the horizontal split too. Notice that <em>any</em> single axis-aligned line still leaves a lot of students on the wrong side — the true rule is a wavy curve, and a single axis cut can only approximate it.</p>
       </section>
 
       <!-- ================= STAGE 3 ================= -->
@@ -374,7 +374,7 @@
         <div class="controls">
           <div class="row">
             <span class="label">max depth</span>
-            <input type="range" id="s5Slider" min="0" max="6" step="1" value="2" aria-label="maximum tree depth, 0 to 6" />
+            <input type="range" id="s5Slider" min="0" max="10" step="1" value="2" aria-label="maximum tree depth, 0 to 10" />
             <span class="val" id="s5ValOut">2</span>
           </div>
         </div>
@@ -411,13 +411,13 @@
         <div class="controls">
           <div class="row">
             <span class="label">max depth</span>
-            <input type="range" id="s7Slider" min="1" max="12" step="1" value="3" aria-label="maximum tree depth, 1 to 12" />
+            <input type="range" id="s7Slider" min="1" max="20" step="1" value="3" aria-label="maximum tree depth, 1 to 20" />
             <span class="val" id="s7ValOut">3</span>
           </div>
         </div>
 
         <div class="warningbox">
-          <strong>The trap.</strong> Past a certain depth, training accuracy keeps rising but test accuracy <em>falls</em>. Dr. Quinlan isn't learning the rule any more — he's memorising the 5% label noise in the training set. On fresh data that noise is different, and his extra splits actively hurt.
+          <strong>The trap.</strong> Past a certain depth, training accuracy keeps rising but test accuracy <em>falls</em>. Dr. Quinlan isn't learning the rule any more — he's memorising the 15% label noise in the training set. On fresh data that noise is different, and his extra splits actively hurt.
         </div>
 
         <div class="repairbox">
@@ -457,8 +457,8 @@
     } from './shared/plot.js';
 
     // ---------------- state ----------------
-    const TRAIN = generateData(150, 42, { boundary: 'linear', noise: 0.05 });
-    const TEST  = generateData(200, 2025, { boundary: 'linear', noise: 0.05 });
+    const TRAIN = generateData(150, 42, { boundary: 'wavy', noise: 0.15 });
+    const TEST  = generateData(200, 2025, { boundary: 'wavy', noise: 0.15 });
     const X = [TRAIN.X1, TRAIN.X2];
     const Xtest = [TEST.X1, TEST.X2];
 
@@ -469,7 +469,7 @@
       s4: { t: 5, feature: 0, best: null },
       s5: { depth: 2 },
       s7: { depth: 3 },
-      // Pre-computed train/test curve (depth 1..12)
+      // Pre-computed train/test curve (depth 1..20)
       ttCurve: null
     };
 
@@ -479,7 +479,7 @@
     // Pre-compute train/test accuracy curve for stage 7
     state.ttCurve = (() => {
       const depths = [];
-      for (let d = 1; d <= 12; d++) {
+      for (let d = 1; d <= 20; d++) {
         const tree = train(X, TRAIN.y, { maxDepth: d });
         depths.push({
           d,
@@ -795,9 +795,9 @@
         .attr('preserveAspectRatio', 'xMidYMid meet');
       const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
       const data = state.ttCurve;
-      const x = d3.scaleLinear().domain([1, 12]).range([0, iw]);
+      const x = d3.scaleLinear().domain([1, 20]).range([0, iw]);
       const y = d3.scaleLinear().domain([0.7, 1.01]).range([ih, 0]);
-      g.append('g').attr('transform', `translate(0,${ih})`).call(d3.axisBottom(x).ticks(12));
+      g.append('g').attr('transform', `translate(0,${ih})`).call(d3.axisBottom(x).ticks(10));
       g.append('g').call(d3.axisLeft(y).ticks(4).tickFormat(d3.format('.0%')));
       g.append('text').attr('x', iw / 2).attr('y', ih + 24)
         .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--c-ink-muted)')

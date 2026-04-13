@@ -187,19 +187,20 @@ export function drawSplitLine(layer, feature, threshold, xScale, yScale, innerW,
 }
 
 // ------------------------------------------------------------
-// True boundary: marching-squares iso-contour at f = 0.5
-// over a 60×60 grid. Draws gold dashed line segments.
+// True boundary: marching-squares iso-contour at f = 0 over an
+// 80×80 grid. `boundaryFn` must be a CONTINUOUS (real-valued) score;
+// crossings are interpolated linearly, which is what gives a smooth
+// dashed line rather than a staircase of grid-midpoint dots.
 // ------------------------------------------------------------
 export function drawTrueBoundary(layer, boundaryFn, xScale, yScale, xDomain, yDomain) {
-  const N = 60;
+  const N = 80;
   const [x0, x1] = xDomain, [y0, y1] = yDomain;
   const dx = (x1 - x0) / N, dy = (y1 - y0) / N;
   const segs = [];
 
   function interp(a, b, fa, fb) {
-    // a, b are [x,y]; fa, fb in {0,1}. Place on the midpoint (0.5 level).
-    // Since fa != fb, use 0.5 as the crossing value.
-    const t = (0.5 - fa) / (fb - fa);
+    // Linear interpolation of the zero-crossing between real-valued fa, fb.
+    const t = fa / (fa - fb);
     return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
   }
 
@@ -211,31 +212,31 @@ export function drawTrueBoundary(layer, boundaryFn, xScale, yScale, xDomain, yDo
       const v10 = boundaryFn(xb, ya);
       const v01 = boundaryFn(xa, yb);
       const v11 = boundaryFn(xb, yb);
-      const idx = (v00 ? 1 : 0) | (v10 ? 2 : 0) | (v11 ? 4 : 0) | (v01 ? 8 : 0);
+      const s00 = v00 > 0, s10 = v10 > 0, s01 = v01 > 0, s11 = v11 > 0;
+      const idx = (s00 ? 1 : 0) | (s10 ? 2 : 0) | (s11 ? 4 : 0) | (s01 ? 8 : 0);
       if (idx === 0 || idx === 15) continue;
       const edges = [];
-      // bottom edge (v00 - v10)
-      if (v00 !== v10) edges.push(interp([xa,ya],[xb,ya], v00, v10));
-      // right edge (v10 - v11)
-      if (v10 !== v11) edges.push(interp([xb,ya],[xb,yb], v10, v11));
-      // top edge (v01 - v11)
-      if (v01 !== v11) edges.push(interp([xa,yb],[xb,yb], v01, v11));
-      // left edge (v00 - v01)
-      if (v00 !== v01) edges.push(interp([xa,ya],[xa,yb], v00, v01));
-      // Usually 2 edges — connect them.
+      if (s00 !== s10) edges.push(interp([xa,ya],[xb,ya], v00, v10));
+      if (s10 !== s11) edges.push(interp([xb,ya],[xb,yb], v10, v11));
+      if (s01 !== s11) edges.push(interp([xa,yb],[xb,yb], v01, v11));
+      if (s00 !== s01) edges.push(interp([xa,ya],[xa,yb], v00, v01));
       for (let k = 0; k + 1 < edges.length; k += 2) {
         segs.push([edges[k], edges[k + 1]]);
       }
     }
   }
 
+  // Connect segments into polylines for a continuous dash pattern.
+  const D3 = d3();
+  const line = D3.line().x(d => xScale(d[0])).y(d => yScale(d[1]));
   for (const [p, q] of segs) {
-    layer.append('line')
-      .attr('x1', xScale(p[0])).attr('y1', yScale(p[1]))
-      .attr('x2', xScale(q[0])).attr('y2', yScale(q[1]))
-      .attr('stroke', PALETTE.truth).attr('stroke-width', 1.75)
-      .attr('stroke-dasharray', '5 4')
-      .attr('opacity', 0.9);
+    layer.append('path')
+      .attr('d', line([p, q]))
+      .attr('fill', 'none')
+      .attr('stroke', PALETTE.truth).attr('stroke-width', 2)
+      .attr('stroke-dasharray', '6 4')
+      .attr('stroke-linecap', 'round')
+      .attr('opacity', 0.95);
   }
 }
 
